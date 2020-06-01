@@ -1,0 +1,148 @@
+---
+title: "Find Parameter For Copula and Maximum Tail Dependence"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(mvtnorm)
+library(copula)
+
+#helper function that ensures that generates the points for the copula
+generateRestrictedBivariateCopulaSample <- function(num, fraction, copula){
+  if(num < fraction || num > 1-fraction){
+    return(c(num, num))
+  }
+  scal <- (1-(2*fraction))
+  return( c( (rCopula(1,copula)*scal+(fraction)) , (rCopula(1,copula)*scal+(fraction) ) ) )
+}
+
+constructBivariateCopulaWithTailDependence <- function(fraction, copula, numSamples){
+  x_vec <- vector()
+  y_vec <- vector()
+  
+  unifVec <- runif(numSamples)
+  copulaData <- lapply(unifVec, generateRestrictedBivariateCopulaSample, fraction, copula)
+  
+  for(i in 1:numSamples){
+    x_vec <- append(x_vec, copulaData[[i]][1])
+    y_vec <- append(y_vec, copulaData[[i]][2])
+  }
+  
+  return(matrix(c(x_vec,y_vec), nrow=length(x_vec)))
+}
+
+findParameterForTransformedNormalCopula <- function(fraction, numSamples, uv_cov, uv_prime_cov, InitialParameterVal = 0){
+  if(isTRUE(all.equal(uv_cov,uv_prime_cov))   ) {
+    return(InitalParameterVal)  
+  }else if(uv_cov < uv_prime_cov){
+    return(FALSE) #meaning this is not possible to optimize
+  }else{
+    functionToOptimize <-function(x){
+      cop <- constructBivariateCopulaWithTailDependence(fraction,normalCopula(param = x, dim = 2),numSamples)
+      return(abs(cov(cop[,1],cop[,2])-uv_cov))
+    }
+    # $minimum is the x value for which the minimum is achieved (note that optimize returns a list) 
+    return(optimize(functionToOptimize,c(0,1),lower=InitialParameterVal,upper=1,maximum=FALSE)$minimum)
+  }
+}
+
+#don't use this function; it is not good
+findGreatestPossibleTailDependence <- function(meanVector,covMatrix,copula,numSamples){
+  multiRandomVar <- rmvnorm(numSamples, mean=meanVector, sigma=covMatrix)
+  cumulMultiRandomVar <- matrix()
+    for(i in 1:length(meanVector)){
+    unifRandomVar <- pnorm(multiRandomVar[,i],mean=meanVector[i],sd=sqrt(covMatrix[i,i]))
+    if(i==1){
+      cumulMultiRandomVar <- matrix(unifRandomVar,nrow=length(unifRandomVar))
+    }else{
+      cumulMultiRandomVar <- cbind(cumulMultiRandomVar, unifRandomVar)     
+    }
+  }
+
+  u <- cumulMultiRandomVar[,1]
+  v <- cumulMultiRandomVar[,2]
+  uv_cov <- cov(u,v)
+  
+  functionToOptimize <- function(frac){
+    bivarCopula <- constructBivariateCopulaWithTailDependence(frac,copula,numSamples)
+    return(abs(cov(bivarCopula[,1],bivarCopula[,2])-uv_cov))
+  }
+  #we specify up to 1/2 because a fraction of 1/2 means that copula is just a straight line
+  return(optimize(functionToOptimize,c(0,1/2),lower=0,upper=(1/2),maximum=F)$minimum)
+}
+```
+initial values
+```{r}
+#variables that we test with
+X_var = 1
+Y_var = 1
+fraction <- 1/16
+numSamples <- 5000
+ncop <- normalCopula(param = 0, dim = 2) # parameter needs to be adjusted to ensure the same covariance
+mu <- rep(0,2)
+sig <- matrix(c(X_var,1,1,Y_var),2,2)
+```
+
+most amount of tail dependence possible for this bivariate copula while still retaining the same covariance as before
+```{r}
+myFrac <- findGreatestPossibleTailDependence(mu,sig,ncop,numSamples)
+print(myFrac)
+myCop <- constructBivariateCopulaWithTailDependence(myFrac,ncop,numSamples)
+print(cov(myCop[,1],myCop[,2]))
+plot(myCop[,1],myCop[,2])
+```
+
+
+finding if a parameter for the center part of the copula exists or not and if it does what is it
+```{r}
+bivarNormalSamples <- rmvnorm(numSamples, mean =mu, sigma = sig)
+
+x <- bivarNormalSamples[,1]
+y <- bivarNormalSamples[,2]
+
+u <- pnorm(x, mean=0, sd=sqrt(X_var))
+v <- pnorm(y, mean=0, sd=sqrt(Y_var))
+
+bivarCopSample <- constructBivariateCopulaWithTailDependence(fraction, ncop, numSamples)
+
+u_p <- bivarCopSample[,1]
+v_p <- bivarCopSample[,2]
+
+# we are trying to get the two below covariances to be the exactly the same
+# uv_prime_cov will be changed to reflect that if possible given the size of the tail
+# dependence
+
+uv_cov <- cov(u,v)
+uv_prime_cov <- cov(bivarCopSample[,1],bivarCopSample[,2])
+
+#the copula parameter that allows us to retain the same covariance from earlier
+normalCopulaParameter <- findParameterForTransformedNormalCopula(fraction,numSamples,uv_cov,uv_prime_cov)
+
+if(normalCopulaParameter == FALSE){
+  print("Can't construct copula. Too much tail dependence! (NOTE: if the sample size is small then
+  whether such a copula exists could be dependent on the particular sample!")
+  plot(bivarCopSample)
+}else{
+  
+  #below is the normal copula that allows for us to have the exact same covariance as the original
+  #but with tail dependence
+  #This means that any change in the parameter value would result in a copula with differing covariance
+  
+  preservingNormalCopula <- normalCopula(param= normalCopulaParameter)
+  preservingBivarCopSample <- constructBivariateCopulaWithTailDependence(fraction, preservingNormalCopula, numSamples)
+  
+  uv_prime_cov <- cov(preservingBivarCopSample[,1], preservingBivarCopSample[,2])
+  print(normalCopulaParameter)
+  
+  plot(preservingBivarCopSample)
+}
+
+
+print(uv_cov)
+print(uv_prime_cov)
+
+```

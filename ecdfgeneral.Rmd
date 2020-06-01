@@ -1,0 +1,80 @@
+---
+title: "ecdfgeneral"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Section
+
+```{r message=F, warning=F}
+library(mvtnorm)
+library(copula)
+library(ggplot2)
+```
+```{r, echo = T}
+
+numSamples <- 10000
+n <- 10 # arbitrary size
+meanVector = rep(0, n)
+covMatrix <- matrix(data=rep(0,n*n),nrow=n,byrow=TRUE)
+
+for(i in 1:n){
+  covMatrix[i,i] <- 1 # to make this a standard normal matrix
+}
+
+multiRandomVar <- rmvnorm(numSamples, mean=meanVector, sigma=covMatrix)
+
+#this converts it into a copula
+#
+#cumulMultiRandomVar <- matrix()
+# for(i in 1:n)){
+#   unifRandomVar <- pnorm(multiRandomVar[,i],mean=meanVector[i],sd=sqrt(covMatrix[i,i]))
+#   if(i==1){
+#     cumulMultiRandomVar <- matrix(unifRandomVar,nrow=length(unifRandomVar))
+#   }else{
+#     cumulMultiRandomVar <- cbind(cumulMultiRandomVar, unifRandomVar)     
+#   }
+# }
+
+sum_x1_xn <- vector(mode = "numeric", length = n) # this is our X1 + ... + Xn random variable 
+for(i in 1:n){
+  sum_x1_xn <- sum_x1_xn + multiRandomVar[,i]
+}
+ 
+n_x1 <- n*multiRandomVar[,1] # this is our comonotonic random variable ~ n*X1
+
+
+largest <- max( max(abs(n_x1)), max(abs(sum_x1_xn)) )+1
+seq1 <- seq(from = -1*largest, to = largest, by = 0.05)
+
+hist(sum_x1_xn,breaks =seq1) 
+var(sum_x1_xn)
+hist(n_x1,breaks =seq1) 
+var(n_x1)
+
+vVec <- append(sum_x1_xn,n_x1)
+
+vType <- rep("X1+...Xn", numSamples) 
+vType <- append(vType, rep("n*X1", numSamples))
+
+dataFrame <- data.frame(valueVec=vVec, varType=vType)
+
+```
+
+
+```{r}
+#use ecdf function to compute
+ecdfPlot <- ggplot(dataFrame, aes( x= unlist(dataFrame[1]) ) )
+ecdfPlot <- ecdfPlot + stat_ecdf(mapping=aes(color=varType))
+ecdfPlot <- ecdfPlot + labs(title = "Empirical Cumulative \n Density Function")
+ecdfPlot <- ecdfPlot +  xlab("Random variable value")
+ecdfPlot <- ecdfPlot +  ylab("Cumulative Density")
+ecdfPlot <- ecdfPlot + theme(text = element_text(size=7),
+                             legend.box='horizontal',
+                             legend.text = element_text(size = 8),
+                             panel.background = element_rect(fill = "white")) + scale_colour_brewer(palette = "Set1")
+plot(ecdfPlot)
+```

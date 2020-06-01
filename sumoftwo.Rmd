@@ -1,0 +1,91 @@
+---
+title: "sumoftwo"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(mvtnorm)
+```
+
+```{r}
+normalComonotonicInTail <- function(middleRegionToSampleFrom, values, mean,stddev){
+  ret <- vector()
+  for(i in values){
+    if( abs((i-mean)/stddev) > stddev){
+      ret <- append(ret, i)
+    }else{
+      ret <- append(ret, sample(middleRegionToSampleFrom,1))
+    }
+  }
+  return(ret)
+}
+findCovarianceForSumOfTwo <- function(varianceToMatch,numSamples){
+  f <- function(covar){
+    meanVec <- c(0,0)
+    covMat <- matrix(data=c(1,covar,covar,1),nrow=2,byrow=TRUE)
+    x <- rmvnorm(numSamples,mean=meanVec, sigma= covMat)
+    return(abs(var(x[,1] + x[,2])-varianceToMatch))
+  }
+  return(optimize(f,c(-1,1),lower=-1,upper=1,maximum=FALSE)$minimum)
+}
+
+
+```
+
+```{r}
+numSamples <- 10000
+
+stddevRegion <- 1
+
+mommyNormalDist <- rnorm(numSamples)
+regionForMiddlePart <- mommyNormalDist[mommyNormalDist>=-1*stddevRegion & 
+                                       mommyNormalDist<= 1*stddevRegion  ]
+
+
+x <- sample(mommyNormalDist)
+y <- normalComonotonicInTail(regionForMiddlePart, x, 0, stddevRegion)
+cov(x,y)
+
+var_xplusy <- var(x+y)
+
+covForBivarNorm <- findCovarianceForSumOfTwo(var_xplusy,numSamples)
+print(covForBivarNorm)
+
+covMat <- matrix(data=c(1,covForBivarNorm,covForBivarNorm,1),nrow=2,byrow=TRUE)
+a_b <- rmvnorm(numSamples, mean = rep(0,2), sigma= covMat)
+a_plus_b <- a_b[,1] + a_b[,2]
+
+temp_df <- data.frame(x,y,x+y,a_plus_b)
+largest <- max(abs(unlist(temp_df)))+1
+seq1 <- seq(from = -1*largest, to = largest, by = 0.05)
+
+
+hist(x,breaks=seq1)
+var(x)
+hist(y,breaks =seq1)
+var(y)
+hist(x+y,breaks=seq1)
+print(var_xplusy)
+hist(a_plus_b,breaks = seq1)
+var(a_plus_b)
+
+
+
+
+
+
+# unif_x <- pnorm(x, sd= sd(x))
+# unif_y <- pnorm(y, sd= sd(y))
+# 
+# hist(unif_x)
+# hist(unif_y)
+# 
+# plot(unif_x,unif_y)
+
+```
+
+

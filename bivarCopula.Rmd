@@ -1,0 +1,148 @@
+---
+title: "CopulaSimulation"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Libraries
+
+```{r message=F, warning=F}
+library(mvtnorm)
+library(copula)
+```
+
+## Some functions
+
+The following function is a helper function to the constructBivariateCopula function. This function returns the location of a point on the unit square that represents our copula with
+the tail dependence that we want.
+
+```{r}
+generateRestrictedBivariateCopulaSample <- function(num, fraction, copula){
+  if(num < fraction || num > 1-fraction){
+    return(c(num, num))
+  }
+  scal <- (1-(2*fraction))
+  return( c( (rCopula(1,copula)*scal+(fraction)) , (rCopula(1,copula)*scal+(fraction) ) ) )
+}
+```
+
+
+The constructBivariateCopula function allows us to generate the copula that we would like with 
+tail dependence.
+
+```{r}
+constructBivariateCopula <- function(fraction, copula, numSamples){
+  x_vec <- vector()
+  y_vec <- vector()
+  
+  unifVec <- runif(numSamples)
+  copulaData <- lapply(unifVec, generateRestrictedBivariateCopulaSample, fraction, copula)
+  
+  for(i in 1:numSamples){
+    x_vec <- append(x_vec, copulaData[[i]][1])
+    y_vec <- append(y_vec, copulaData[[i]][2])
+  }
+  
+  return(matrix(c(x_vec,y_vec), nrow=length(x_vec)))
+}
+```
+
+## Example
+
+Let's create a bivariate random variable with the following mean vector and covariance matrix.
+
+```{r}
+X_var = 1
+Y_var = 1
+
+mu <- rep(0,2)
+sig <- matrix(c(X_var,1,1,Y_var),2,2)
+```
+
+Let us sample some values with from the following distribution with this mean vector and covariance matrix.
+
+```{r}
+bivarNormalSamples <- rmvnorm(10000, mean =mu, sigma = sig)
+```
+
+Let x represent a large number of samples of the first component of our random variable and and let y the second component.
+
+```{r}
+x<- bivarNormalSamples[,1]
+y<- bivarNormalSamples[,2]
+```
+
+We can see that obviously x follows the specified distribution.
+
+```{r}
+hist(x)
+```
+
+We also see that y follows the specified distribution.
+
+```{r}
+hist(y)
+```
+
+Now we will transform the marginals using the distribution function for our components.
+
+```{r}
+u<- pnorm(x, mean=0, sd=sqrt(X_var))
+v<- pnorm(y, mean=0, sd=sqrt(Y_var))
+```
+
+We see that the first component of our copula is uniformly distributed.
+
+```{r}
+hist(u)
+```
+
+We also see that the second component of our copula is uniformly distributed.
+
+```{r}
+hist(v)
+```
+
+And so we have that the variance for our first component u is `r var(u)` and the variance for the second component v is `r var(v)` and the covariance between the two is `r cov(u,v)`.
+
+## Transformation of the copula
+
+We need to transform the copula that we created to create tail dependence while still retaining the same covariance that we had earlier. The variances of the components should not change and so all we need to ensure is that the covariance stays the same in the transformation. This may or may not be possible depending on the level of tail dependence. Also note that the covariance depends upon the parameter for the copula that we choose to sample from in the non-tail regions of this new copula.
+
+We will use the following copula to sample from with the following parameter.
+
+```{r}
+ncop <- normalCopula(param = 0, dim = 2) # parameter needs to be adjusted to ensure the same covariance
+```
+
+Now we will construct our copula using the function from earlier.
+
+```{r}
+bivarCopSample <- constructBivariateCopula(1/4, ncop, 10000)
+```
+
+Let us see how the transformation went. 
+
+And finally, this is a histogram of the first component. This should look uniform.
+
+```{r}
+hist(bivarCopSample[,1])
+```
+
+This is the histogram of the second component, and it should also look uniform.
+
+```{r}
+hist(bivarCopSample[,2])
+```
+
+Okay, now so the variance of the first component is `r var(bivarCopSample[,1])` and the variance of the second component is `r var(bivarCopSample[,2])`. These are relatively close to what they were before the transformation. The covariance on the other hand may or may not be close to what it was before. We have that the covariance is `r cov(bivarCopSample[,1], bivarCopSample[,2])`.
+
+This is the plot of our copula with tail dependence.
+
+```{r}
+plot(bivarCopSample)
+```

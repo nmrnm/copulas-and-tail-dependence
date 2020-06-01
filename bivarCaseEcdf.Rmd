@@ -1,0 +1,70 @@
+---
+title: "bivarCase"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Section
+
+```{r message=F, warning=F}
+library(mvtnorm)
+library(copula)
+library(ggplot2)
+```
+```{r, echo = T}
+# standard normally distrubuted random variables
+
+
+#for(i in 1:5){
+numSamples <- 10000
+
+x <- rnorm(numSamples)   # represents X
+y <- rnorm(numSamples)   # represents Y
+z <- 2*rnorm(numSamples) # represents X'+Y' = 2X' (not: comonotonic version  of (X, Y) is (X',Y'))
+
+
+#bivariate standard normal random variables
+a <- rnorm(numSamples)
+b <- rnorm(numSamples)
+
+
+largest <- max(max(abs(x)), max(abs(y)), max(abs(z)))
+largest <- 1.5*largest
+seq1 <- seq(from = -1*largest, to = largest, by = 0.05)
+
+hist(x, breaks =seq1)
+var(x)
+hist(y,breaks =seq1) 
+var(y)
+hist(x+y,breaks =seq1) 
+var(x+y)
+hist(z,breaks = seq1)
+var(z)
+
+vVec <- append(append(x,y),z)
+
+vType <- rep("X", numSamples) 
+vType <- append(vType, rep("Y", numSamples))
+vType <- append(vType, rep("X'+Y'=2X'", numSamples))
+
+dataFrame <- data.frame(valueVec=vVec, varType=vType)
+
+```
+
+
+```{r}
+#use ecdf function to compute
+ecdfPlot <- ggplot(dataFrame, aes( x= unlist(dataFrame[1]) ) )
+ecdfPlot <- ecdfPlot + stat_ecdf(mapping=aes(color=varType))
+ecdfPlot <- ecdfPlot + labs(title = "Empirical Cumulative \n Density Function")
+ecdfPlot <- ecdfPlot +  xlab("Random variable value")
+ecdfPlot <- ecdfPlot +  ylab("Cumulative Density")
+ecdfPlot <- ecdfPlot + theme(text = element_text(size=7),
+                             legend.box='horizontal',
+                             legend.text = element_text(size = 8),
+                             panel.background = element_rect(fill = "white")) + scale_colour_brewer(palette = "Set1")
+plot(ecdfPlot)
+```

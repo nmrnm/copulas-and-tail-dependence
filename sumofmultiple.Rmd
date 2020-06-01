@@ -1,0 +1,104 @@
+---
+title: "sumofmultiple"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(mvtnorm)
+```
+
+```{r}
+normalComonotonicInTail <- function(middleRegionToSampleFrom, values, mean,stddev){
+  ret <- vector()
+  for(i in values){
+    if( abs((i-mean)/stddev) > stddev){
+      ret <- append(ret, i)
+    }else{
+      ret <- append(ret, sample(middleRegionToSampleFrom,1))
+    }
+  }
+  return(ret)
+}
+findCovarianceForSumOfMultiple <- function(varianceToMatch,numSamples,dimension){
+  f <- function(covar){
+    meanVec <- rep(0,dimension)
+    dataVec <- rep(covar,dimension*dimension)
+    
+    for(i in 1:dimension){
+      dataVec[(i+(i-1)*dimension)]  <- 1 #ensures diagnol entries are 1's when converted to a matrix
+    }
+    
+    covMat <- matrix(data=dataVec,nrow=dimension,byrow=TRUE)
+    x <- rmvnorm(numSamples,mean=meanVec, sigma= covMat)
+    sum_vec <- vector()
+    
+    for(i in 1:dimension){
+      sum_vec <- sum_vec + x[,i]
+    }
+    
+    return(abs(var(sum_vec)-varianceToMatch))
+  }
+  return(optimize(f,c(-1,1),lower=-1,upper=1,maximum=FALSE)$minimum)
+}
+
+
+```
+
+```{r}
+numSamples <- 100000
+dimension <- 10
+stddevRegion <- 1
+
+mommyNormalDist <- rnorm(numSamples)
+regionForMiddlePart <- mommyNormalDist[mommyNormalDist>=-1*stddevRegion & 
+                                       mommyNormalDist<= 1*stddevRegion  ]
+
+x <- sample(mommyNormalDist)
+sum_comon_tail_x1_xn <- x
+
+for(i in 1:(dimension-1)){
+  sum_comon_tail_x1_xn <- sum_comon_tail_x1_xn + normalComonotonicInTail(regionForMiddlePart, x, 0, stddevRegion)  
+} 
+
+covForBivarNorm <- findCovarianceForSumOfMultiple(var(sum_comon_tail_x1_xn),numSamples,dimension)
+print(covForBivarNorm)
+
+dataVec <- rep(covForBivarNorm,dimension*dimension)
+    
+for(i in 1:dimension){
+  dataVec[(i+(i-1)*dimension)] <- 1 #ensures diagnol entries are 1's when converted to a matrix
+}
+
+covMat <- matrix(data=dataVec,nrow=dimension,byrow=TRUE)
+multiVar <- rmvnorm(numSamples, mean = rep(0,dimension), sigma= covMat)
+
+sum_vec <- multiVar[,1]
+    
+for(i in 2:dimension){
+  sum_vec <- sum_vec + multiVar[,i]
+}
+
+temp_df <- data.frame(sum_comon_tail_x1_xn,sum_vec)
+largest <- max(abs(unlist(temp_df)))+1
+seq1 <- seq(from = -1*largest, to = largest, by = 0.05)
+
+
+hist(sum_comon_tail_x1_xn,breaks=seq1)
+var(sum_comon_tail_x1_xn)
+hist(sum_vec,breaks = seq1)
+var(sum_vec)
+
+
+# unif_x <- pnorm(x, sd= sd(x))
+# unif_y <- pnorm(y, sd= sd(y))
+# 
+# hist(unif_x)
+# hist(unif_y)
+# 
+# plot(unif_x,unif_y)
+```
