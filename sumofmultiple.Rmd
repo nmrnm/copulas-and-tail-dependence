@@ -13,10 +13,10 @@ library(mvtnorm)
 ```
 
 ```{r}
-normalComonotonicInTail <- function(middleRegionToSampleFrom, values, mean,stddev){
+normalComonotonicInTail <- function(middleRegionToSampleFrom, values, mean,stddev,stddevRegion){
   ret <- vector()
   for(i in values){
-    if( abs((i-mean)/stddev) > stddev){
+    if( abs((i-mean)/stddev) > stddevRegion){
       ret <- append(ret, i)
     }else{
       ret <- append(ret, sample(middleRegionToSampleFrom,1))
@@ -50,7 +50,7 @@ findCovarianceForSumOfMultiple <- function(varianceToMatch,numSamples,dimension)
 ```
 
 ```{r}
-numSamples <- 100000
+numSamples <- 1000
 dimension <- 10
 stddevRegion <- 1
 
@@ -62,7 +62,7 @@ x <- sample(mommyNormalDist)
 sum_comon_tail_x1_xn <- x
 
 for(i in 1:(dimension-1)){
-  sum_comon_tail_x1_xn <- sum_comon_tail_x1_xn + normalComonotonicInTail(regionForMiddlePart, x, 0, stddevRegion)  
+  sum_comon_tail_x1_xn <- sum_comon_tail_x1_xn + normalComonotonicInTail(regionForMiddlePart, x, 0, 1, stddevRegion)  
 } 
 
 covForBivarNorm <- findCovarianceForSumOfMultiple(var(sum_comon_tail_x1_xn),numSamples,dimension)
