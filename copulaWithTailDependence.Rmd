@@ -8,7 +8,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 ```{r}
 library(copula)
-
+library(mvtnorm)
 ```
 note that there there is dr.reumans code here as well (see ForNoah20200601.R)
 ```{r}
@@ -28,12 +28,12 @@ newCopulaWithTailDependece<-function(n,dim,rho,thresh_lo,thresh_hi)
 }
 
 
-findNormalCopulaParam <- function(numSamples,dim,varSumToMatch){
+findNormalCopulaParam <- function(numSamples,dim,varSumRetainToMatch){
     fOptim <-function(rho){
      #varSum is the sum of all entries in the covariance matrix 
      # and the below formula gets that sum in a closed formula way
      varSum <- dim*(dim-1)*rho + dim
-     return(abs(varSum-varSumToMatch))
+     return(abs(varSum-varSumRetainToMatch))
     }
     # $minimum is the x value for which the minimum is achieved (note that optimize returns a list) 
     return(optimize(fOptim,c(0,1),lower=0,upper=1,maximum=FALSE)$minimum)
@@ -55,29 +55,62 @@ plot(res[,1],res[,3],type="p")
 res<-qnorm(res)
 hist(res[,1],50)
 hist(res[,2],50)
-
-covMatrix <- matrix(data=rep(0,times=dim*dim),nrow=dim,byrow=TRUE)
-
-varSum <- 0 
-for(i in 1:dim){
-  for(j in 1:(dim)){
-   covMatrix[i,j] <- cov(res[,i],res[,j])
-   varSum <- varSum + covMatrix[i,j]
-  }
-}
-
-print(covMatrix)
-print(varSum)
-
-rho <- findNormalCopulaParam(numSamples, dim, varSum)
-newNormalCop <- normalCopula(param = rho)
-myNormCop <- rCopula(n, newNormalCop)
-
-plot(res[,1],res[,2],type="p")
-plot(myNormCop[,1],myNormCop[,2])
 ```
 
 ```{r}
+covMatrix <- matrix(data=rep(0,times=dim*dim),nrow=dim,byrow=TRUE)
+newCovMatrix <- matrix(data=rep(rho, dim*dim), nrow=dim,byrow=TRUE)
+varSumRetain <- 0 
 
+for(i in 1:dim){
+  for(j in 1:(dim)){
+   if(i == j){
+      newCovMatrix[i,i] <- 1
+   }
+   covMatrix[i,j] <- cov(res[,i],res[,j])
+   varSumRetain <- varSumRetain + covMatrix[i,j]
+  }
+}
+```
+
+```{r}
+multiNormMarg <- rmvnorm(n, mean = rep(0,dim), sigma = covMatrix)
+newMultiNormMarg <- rmvnorm(n, mean=rep(0,dim),sigma= newCovMatrix)
+
+rho <- findNormalCopulaParam(numSamples, dim, varSumRetain)
+newNormalCop <- normalCopula(param = rho)
+newNormCop <- rCopula(n, newNormalCop)
+
+sum_of_x1_xn <- multiNormMarg[,1]
+new_sum_of_x1_xn <- newMultiNormMarg[,1]
+for(i in 2:dim){
+  sum_of_x1_xn <- sum_of_x1_xn + multiNormMarg[,i] 
+  new_sum_of_x1_xn <- new_sum_of_x1_xn + newMultiNormMarg[,i] 
+}
+
+hist(sum_of_x1_xn)
+var(sum_of_x1_xn)
+hist(new_sum_of_x1_xn)
+var(new_sum_of_x1_xn)
+
+
+plot(res[,1],res[,2],type="p")
+plot(newNormCop[,1],newNormCop[,2])
+```
+
+```{r}
+# dataFrame <- data.frame()
+# 
+# ecdfPlot <- ggplot(dataFrame, aes( x= unlist(dataFrame[1]) ) )
+# ecdfPlot <- ecdfPlot + stat_ecdf(mapping=aes(color=varType))
+# ecdfPlot <- ecdfPlot + labs(title = "Empirical Cumulative \n Density Function")
+# ecdfPlot <- ecdfPlot +  xlab("Random variable value")
+# ecdfPlot <- ecdfPlot +  ylab("Cumulative Density")
+# ecdfPlot <- ecdfPlot + theme(text = element_text(size=7),
+#                              legend.box='horizontal',
+#                              legend.text = element_text(size = 8),
+#                              panel.background = element_rect(fill = "white")) + scale_colour_brewer(palette = "Set1")
+# plot(ecdfPlot)
+# 
 
 ```
