@@ -61,6 +61,9 @@ hist(res[,2],50)
 covMatrix <- matrix(data=rep(0,times=dim*dim),nrow=dim,byrow=TRUE)
 newCovMatrix <- matrix(data=rep(rho, dim*dim), nrow=dim,byrow=TRUE)
 varSumRetain <- 0 
+# covMatrix is not really needed
+# it is the covariance matrix for the marginals of the normal copula when
+# the marginals are transformed into normal dist. 
 
 for(i in 1:dim){
   for(j in 1:(dim)){
@@ -74,25 +77,24 @@ for(i in 1:dim){
 ```
 
 ```{r}
-multiNormMarg <- rmvnorm(n, mean = rep(0,dim), sigma = covMatrix)
-newMultiNormMarg <- rmvnorm(n, mean=rep(0,dim),sigma= newCovMatrix)
 
 rho <- findNormalCopulaParam(numSamples, dim, varSumRetain)
-newNormalCop <- normalCopula(param = rho)
+newNormalCop <- normalCopula(param = rho,dim =dim)
 newNormCop <- rCopula(n, newNormalCop)
 
-sum_of_x1_xn <- multiNormMarg[,1]
+newMultiNormMarg <- qnorm(newNormCop)
+
 new_sum_of_x1_xn <- newMultiNormMarg[,1]
+sum_res <- res[,1]
+
 for(i in 2:dim){
-  sum_of_x1_xn <- sum_of_x1_xn + multiNormMarg[,i] 
+  sum_res <- sum_res + res[,i]
   new_sum_of_x1_xn <- new_sum_of_x1_xn + newMultiNormMarg[,i] 
 }
-
-hist(sum_of_x1_xn)
-var(sum_of_x1_xn)
-hist(new_sum_of_x1_xn)
+hist(sum_res,50)
+var(sum_res)
+hist(new_sum_of_x1_xn,50)
 var(new_sum_of_x1_xn)
-
 
 plot(res[,1],res[,2],type="p")
 plot(newNormCop[,1],newNormCop[,2])
