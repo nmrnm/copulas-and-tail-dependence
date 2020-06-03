@@ -9,7 +9,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(copula)
 library(mvtnorm)
+library(ggplot2)
 ```
+
 note that there there is dr.reumans code here as well (see ForNoah20200601.R)
 ```{r}
 
@@ -101,18 +103,23 @@ plot(newNormCop[,1],newNormCop[,2])
 ```
 
 ```{r}
-# dataFrame <- data.frame()
-# 
-# ecdfPlot <- ggplot(dataFrame, aes( x= unlist(dataFrame[1]) ) )
-# ecdfPlot <- ecdfPlot + stat_ecdf(mapping=aes(color=varType))
-# ecdfPlot <- ecdfPlot + labs(title = "Empirical Cumulative \n Density Function")
-# ecdfPlot <- ecdfPlot +  xlab("Random variable value")
-# ecdfPlot <- ecdfPlot +  ylab("Cumulative Density")
-# ecdfPlot <- ecdfPlot + theme(text = element_text(size=7),
-#                              legend.box='horizontal',
-#                              legend.text = element_text(size = 8),
-#                              panel.background = element_rect(fill = "white")) + scale_colour_brewer(palette = "Set1")
-# plot(ecdfPlot)
-# 
+valuesV <- append(sum_res, new_sum_of_x1_xn)
+typeV <- rep("sum_res",n)
+typeV <- append(typeV, rep("new_sum_of_x1_xn",n))
+
+
+dataFrame <- data.frame(values = valuesV, type = typeV)
+
+ecdfPlot <- ggplot(dataFrame, aes( x= unlist(dataFrame[1]) ) )
+ecdfPlot <- ecdfPlot + stat_ecdf(mapping=aes(color=type))
+ecdfPlot <- ecdfPlot + labs(title = "Empirical Cumulative \n Density Function")
+ecdfPlot <- ecdfPlot +  xlab("Random variable value")
+ecdfPlot <- ecdfPlot +  ylab("Cumulative Density")
+ecdfPlot <- ecdfPlot + theme(text = element_text(size=7),
+                             legend.box='horizontal',
+                             legend.text = element_text(size = 8),
+                             panel.background = element_rect(fill = "white")) + scale_colour_brewer(palette = "Set1")
+plot(ecdfPlot)
+
 
 ```
