@@ -27,11 +27,22 @@ newCopulaWithTailDependece<-function(n,dim,rho,thresh_lo,thresh_hi)
   return(res)
 }
 
+
+findNormalCopulaParam <- function(numSamples,dim,varSumToMatch){
+    fOptim <-function(rho){
+     #varSum is the sum of all entries in the covariance matrix 
+     # and the below formula gets that sum in a closed formula way
+     varSum <- dim*(dim-1)*rho + dim
+     return(abs(varSum-varSumToMatch))
+    }
+    # $minimum is the x value for which the minimum is achieved (note that optimize returns a list) 
+    return(optimize(fOptim,c(0,1),lower=0,upper=1,maximum=FALSE)$minimum)
+}
 ```
 
 
 ```{r}
-n<-1000
+n<-10000
 dim<-3
 rho<-0
 thresh_hi<-.9
@@ -47,16 +58,23 @@ hist(res[,2],50)
 
 covMatrix <- matrix(data=rep(0,times=dim*dim),nrow=dim,byrow=TRUE)
 
-
+varSum <- 0 
 for(i in 1:dim){
   for(j in 1:(dim)){
    covMatrix[i,j] <- cov(res[,i],res[,j])
+   varSum <- varSum + covMatrix[i,j]
   }
 }
 
 print(covMatrix)
+print(varSum)
+
+rho <- findNormalCopulaParam(numSamples, dim, varSum)
+newNormalCop <- normalCopula(param = rho)
+myNormCop <- rCopula(n, newNormalCop)
 
 plot(res[,1],res[,2],type="p")
+plot(myNormCop[,1],myNormCop[,2])
 ```
 
 ```{r}
