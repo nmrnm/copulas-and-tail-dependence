@@ -1,8 +1,19 @@
+---
+title: "copulaWithTailDependence"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
 library(copula)
 
-#The function
+```
+note that there there is dr.reumans code here as well (see ForNoah20200601.R)
+```{r}
 
-newcop<-function(n,dim,rho,thresh_lo,thresh_hi)
+newCopulaWithTailDependece<-function(n,dim,rho,thresh_lo,thresh_hi)
 {
   U<-runif(n)
   ncop<-normalCopula(rho,dim=dim) #this is the copula of a multivariate normal with covariance matrix having 1s on
@@ -16,15 +27,16 @@ newcop<-function(n,dim,rho,thresh_lo,thresh_hi)
   return(res)
 }
 
+```
 
-#Tests
 
+```{r}
 n<-1000
 dim<-3
 rho<-0
 thresh_hi<-.9
 thresh_lo<-.1
-res<-newcop(n,dim,rho,thresh_lo,thresh_hi)
+res<-newCopulaWithTailDependece(n,dim,rho,thresh_lo,thresh_hi)
 dim(res)
 plot(res[,1],res[,2],type="p")
 plot(res[,1],res[,3],type="p")
@@ -32,6 +44,22 @@ plot(res[,1],res[,3],type="p")
 res<-qnorm(res)
 hist(res[,1],50)
 hist(res[,2],50)
-cor(res[,1],res[,2])
-plot(res[,1],res[,2],type="p")
 
+covMatrix <- matrix(data=rep(0,times=dim*dim),nrow=dim,byrow=TRUE)
+
+
+for(i in 1:dim){
+  for(j in 1:(dim)){
+   covMatrix[i,j] <- cov(res[,i],res[,j])
+  }
+}
+
+print(covMatrix)
+
+plot(res[,1],res[,2],type="p")
+```
+
+```{r}
+
+
+```
