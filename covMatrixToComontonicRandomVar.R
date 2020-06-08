@@ -1,3 +1,4 @@
+library(copula)
 set.seed(16) #arbitrary number for reproducibility
 
 # to create an arbitrary covariance matrix that is positive
