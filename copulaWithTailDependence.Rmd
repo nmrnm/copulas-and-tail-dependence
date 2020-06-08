@@ -41,23 +41,23 @@ findNormalCopulaParam <- function(numSamples,dim,varSumRetain){
     return(optimize(fOptim,c(0,1),lower=0,upper=1,maximum=FALSE)$minimum)
 }
 
-findCovarianceMatrix(numSamples,dim,varSumRetain){
+#findCovarianceMatrix(numSamples,dim,varSumRetain){
   # We have covariance matrix where the variance of each of the marginals are given
   # and so with this we can represente every covariance matrices with 1's along the 
   # main diagonal can be represented as a matrix of the form as P^T*P where P is an 
   # orthogonal matrix (so the transpose is equal to its inverse)
   
   
+ # return()
   
-  
-}
+#}
 
 ```
 
 
 ```{r}
 n<-10000
-dim<-3
+dim<-1000
 rho<-0
 thresh_hi<-.9
 thresh_lo<- 0
@@ -100,6 +100,7 @@ newMultiNormMarg <- qnorm(newNormCop)
 
 new_sum_of_x1_xn <- newMultiNormMarg[,1]
 sum_res <- res[,1]
+com <- dim*res[,1]
 
 for(i in 2:dim){
   sum_res <- sum_res + res[,i]
@@ -115,8 +116,9 @@ plot(newNormCop[,1],newNormCop[,2])
 ```
 
 ```{r}
-valuesV <- append(sum_res, new_sum_of_x1_xn)
-typeV <- rep("sum_res",n)
+valuesV <- append(append(com, sum_res),new_sum_of_x1_xn)
+typeV <- rep("com",n)
+typeV <- append(typeV, rep("sum_res",n))
 typeV <- append(typeV, rep("new_sum_of_x1_xn",n))
 
 
