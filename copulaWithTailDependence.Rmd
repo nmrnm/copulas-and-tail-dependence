@@ -141,9 +141,9 @@ plot(ecdfPlot)
 ```{r}
 
 timeSteps <- 50
-popSize_T_var <- matrix(rep(100, times = 3)) # initial population for each of the three cases 
-popSize_T_fix <- matrix(rep(100, times = 3))
-growthRate <- 9
+popSize_T_var <- matrix(rep(100, times = 3),nrow=1) # initial population for each of the three cases 
+popSize_T_fix <- matrix(rep(100, times = 3),nrow=1)
+growthRate <- 2
 carryingCapacity <- 500
 
 
@@ -164,26 +164,30 @@ hist(epsilon_new_sum_of_x1_xn)
 
 ```{r}
 for(i in 1:timeSteps){
-  temp <- popSize_T_var[1,i]*exp(1-(popSize_T_var[i]/carryingCapacity+epsilon_com[i]) )  
-  temp <- append(temp,popSize_T_var[2,i]*exp(1-(popSize_T_var[i]/carryingCapacity+epsilon_sum_res[i]) )  )
-  temp <- append(temp, popSize_T_var[3,i]*exp(1-(popSize_T_var[i]/carryingCapacity+epsilon_new_sum_of_x1_xn[i]) ) )  
-  popSize_T_var <- cbind(popSize_T_var, temp)
+  temp <- popSize_T_var[i,1]*exp(1-(popSize_T_var[i,1]/carryingCapacity+epsilon_com[i]) )  
+  temp <- append(temp,popSize_T_var[i,2]*exp(1-(popSize_T_var[i,2]/carryingCapacity+epsilon_sum_res[i]) )  )
+  temp <- append(temp, popSize_T_var[i,3]*exp(1-(popSize_T_var[i,3]/carryingCapacity+epsilon_new_sum_of_x1_xn[i]) ) )  
+  popSize_T_var <- rbind(popSize_T_var, temp)
 }
 
-popSize_T_var <- t(popSize_T_var)
 popAbund_T_var <- ts(popSize_T_var,names=c("com","sum_res","new_sum_of_x1_xn"))
 plot.ts(popAbund_T_var)
 ```
 
 ```{r}
 for(i in 1:timeSteps){
-  temp <- popSize_T_fix[1,i]*exp(1-(popSize_T_fix[i]/carryingCapacity+epsilon_com[1]) )  
-  temp <- append(temp,popSize_T_fix[2,i]*exp(1-(popSize_T_fix[i]/carryingCapacity+epsilon_sum_res[1]) )  )
-  temp <- append(temp, popSize_T_fix[3,i]*exp(1-(popSize_T_fix[i]/carryingCapacity+epsilon_new_sum_of_x1_xn[1]) ) )  
-  popSize_T_fix <- cbind(popSize_T_fix, temp)
+  temp <- popSize_T_fix[i,1]*exp(1-(popSize_T_fix[i,1]/carryingCapacity+epsilon_com[1]) )  
+  temp <- append(temp,popSize_T_fix[i,2]*exp(1-(popSize_T_fix[i,2]/carryingCapacity+epsilon_sum_res[1]) )  )
+  temp <- append(temp, popSize_T_fix[i,3]*exp(1-(popSize_T_fix[i,3]/carryingCapacity+epsilon_new_sum_of_x1_xn[1]) ) )  
+  popSize_T_fix <- rbind(popSize_T_fix, temp)
 }
 
-popSize_T_fix <- t(popSize_T_fix)
 popAbund_T_fix <- ts(popSize_T_fix,names=c("com","sum_res","new_sum_of_x1_xn"))
 plot.ts(popAbund_T_fix)
+```
+
+```{r}
+
+
+
 ```
