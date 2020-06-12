@@ -57,9 +57,9 @@ findNormalCopulaParam <- function(numSamples,dim,varSumRetain){
 
 ```{r}
 n<-10000
-dim<-1000
+dim<-10
 rho<-0
-thresh_hi<-.9
+thresh_hi<-.7
 thresh_lo<- 0
 res<-newCopulaWithTailDependece(n,dim,rho,thresh_lo,thresh_hi)
 dim(res)
@@ -111,8 +111,8 @@ var(sum_res)
 hist(new_sum_of_x1_xn,50)
 var(new_sum_of_x1_xn)
 
-plot(res[,1],res[,2],type="p")
-plot(newNormCop[,1],newNormCop[,2])
+#plot(res[,1],res[,2],type="p")
+#plot(newNormCop[,1],newNormCop[,2])
 ```
 
 ```{r}
@@ -136,4 +136,54 @@ ecdfPlot <- ecdfPlot + theme(text = element_text(size=7),
 plot(ecdfPlot)
 
 
+```
+
+```{r}
+
+timeSteps <- 50
+popSize_T_var <- matrix(rep(100, times = 3)) # initial population for each of the three cases 
+popSize_T_fix <- matrix(rep(100, times = 3))
+growthRate <- 9
+carryingCapacity <- 500
+
+
+numEps <- timeSteps + 100 # note that numEps must be at least as large as timeSteps for first simulation below 
+ecdf_com <- ecdf(com)
+ecdf_sum_res <-ecdf(sum_res)
+ecdf_new_sum_of_x1_xn <- ecdf(new_sum_of_x1_xn)
+epsilon_com <- ecdf_com(sample(com, numEps))
+epsilon_sum_res <- ecdf_sum_res(sample(sum_res,numEps))
+epsilon_new_sum_of_x1_xn <- ecdf_new_sum_of_x1_xn(sample(new_sum_of_x1_xn, numEps))
+```
+
+```{r}
+hist(epsilon_com)
+hist(epsilon_sum_res)
+hist(epsilon_new_sum_of_x1_xn)
+```
+
+```{r}
+for(i in 1:timeSteps){
+  temp <- popSize_T_var[1,i]*exp(1-(popSize_T_var[i]/carryingCapacity+epsilon_com[i]) )  
+  temp <- append(temp,popSize_T_var[2,i]*exp(1-(popSize_T_var[i]/carryingCapacity+epsilon_sum_res[i]) )  )
+  temp <- append(temp, popSize_T_var[3,i]*exp(1-(popSize_T_var[i]/carryingCapacity+epsilon_new_sum_of_x1_xn[i]) ) )  
+  popSize_T_var <- cbind(popSize_T_var, temp)
+}
+
+popSize_T_var <- t(popSize_T_var)
+popAbund_T_var <- ts(popSize_T_var,names=c("com","sum_res","new_sum_of_x1_xn"))
+plot.ts(popAbund_T_var)
+```
+
+```{r}
+for(i in 1:timeSteps){
+  temp <- popSize_T_fix[1,i]*exp(1-(popSize_T_fix[i]/carryingCapacity+epsilon_com[1]) )  
+  temp <- append(temp,popSize_T_fix[2,i]*exp(1-(popSize_T_fix[i]/carryingCapacity+epsilon_sum_res[1]) )  )
+  temp <- append(temp, popSize_T_fix[3,i]*exp(1-(popSize_T_fix[i]/carryingCapacity+epsilon_new_sum_of_x1_xn[1]) ) )  
+  popSize_T_fix <- cbind(popSize_T_fix, temp)
+}
+
+popSize_T_fix <- t(popSize_T_fix)
+popAbund_T_fix <- ts(popSize_T_fix,names=c("com","sum_res","new_sum_of_x1_xn"))
+plot.ts(popAbund_T_fix)
 ```

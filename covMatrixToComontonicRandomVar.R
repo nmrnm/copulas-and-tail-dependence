@@ -17,3 +17,4 @@ sumOfVar <- sum(covMat)
 
 print(sumOfVar)
 
+
