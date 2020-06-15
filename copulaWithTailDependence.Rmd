@@ -59,7 +59,7 @@ findNormalCopulaParam <- function(numSamples,dim,varSumRetain){
 n<-10000
 dim<-10
 rho<-0
-thresh_hi<-.7
+thresh_hi<-0.9
 thresh_lo<- 0
 res<-newCopulaWithTailDependece(n,dim,rho,thresh_lo,thresh_hi)
 dim(res)
@@ -106,6 +106,8 @@ for(i in 2:dim){
   sum_res <- sum_res + res[,i]
   new_sum_of_x1_xn <- new_sum_of_x1_xn + newMultiNormMarg[,i] 
 }
+hist(com,50)
+var(com)
 hist(sum_res,50)
 var(sum_res)
 hist(new_sum_of_x1_xn,50)
@@ -143,51 +145,107 @@ plot(ecdfPlot)
 timeSteps <- 50
 popSize_T_var <- matrix(rep(100, times = 3),nrow=1) # initial population for each of the three cases 
 popSize_T_fix <- matrix(rep(100, times = 3),nrow=1)
-growthRate <- 2
+r <- 0 #growth-rate
 carryingCapacity <- 500
 
 
-numEps <- timeSteps + 100 # note that numEps must be at least as large as timeSteps for first simulation below 
-ecdf_com <- ecdf(com)
-ecdf_sum_res <-ecdf(sum_res)
-ecdf_new_sum_of_x1_xn <- ecdf(new_sum_of_x1_xn)
-epsilon_com <- ecdf_com(sample(com, numEps))
-epsilon_sum_res <- ecdf_sum_res(sample(sum_res,numEps))
-epsilon_new_sum_of_x1_xn <- ecdf_new_sum_of_x1_xn(sample(new_sum_of_x1_xn, numEps))
+# numEps <- timeSteps + 100 
+# ecdf_com <- ecdf(com)
+# ecdf_sum_res <-ecdf(sum_res)
+# ecdf_new_sum_of_x1_xn <- ecdf(new_sum_of_x1_xn)
+# epsilon_com <- ecdf_com(sample(com, numEps))
+# epsilon_sum_res <- ecdf_sum_res(sample(sum_res,numEps))
+# epsilon_new_sum_of_x1_xn <- ecdf_new_sum_of_x1_xn(sample(new_sum_of_x1_xn, numEps))
+
+scale_eps <- 2
 ```
 
-```{r}
-hist(epsilon_com)
-hist(epsilon_sum_res)
-hist(epsilon_new_sum_of_x1_xn)
-```
 
 ```{r}
+eps_com <- scale_eps*sample(com,timeSteps)/range(com)
+eps_sum_res <- scale_eps*sample(sum_res,timeSteps)/range(sum_res)
+eps_new_sum_of_x1_xn <- scale_eps*sample(new_sum_of_x1_xn,timeSteps)/range(new_sum_of_x1_xn)
+
 for(i in 1:timeSteps){
-  temp <- popSize_T_var[i,1]*exp(1-(popSize_T_var[i,1]/carryingCapacity+epsilon_com[i]) )  
-  temp <- append(temp,popSize_T_var[i,2]*exp(1-(popSize_T_var[i,2]/carryingCapacity+epsilon_sum_res[i]) )  )
-  temp <- append(temp, popSize_T_var[i,3]*exp(1-(popSize_T_var[i,3]/carryingCapacity+epsilon_new_sum_of_x1_xn[i]) ) )  
+  temp <- popSize_T_var[i,1]*exp(r*(1-(popSize_T_var[i,1]/carryingCapacity))+eps_com[i]) 
+  temp <- append(temp,popSize_T_var[i,2]*exp(r*(1-(popSize_T_var[i,2]/carryingCapacity))+eps_sum_res[i]) )  
+  temp <- append(temp, popSize_T_var[i,3]*exp(r*(1-(popSize_T_var[i,3]/carryingCapacity))+eps_new_sum_of_x1_xn[i]) )   
   popSize_T_var <- rbind(popSize_T_var, temp)
 }
 
 popAbund_T_var <- ts(popSize_T_var,names=c("com","sum_res","new_sum_of_x1_xn"))
 plot.ts(popAbund_T_var)
-```
 
-```{r}
 for(i in 1:timeSteps){
-  temp <- popSize_T_fix[i,1]*exp(1-(popSize_T_fix[i,1]/carryingCapacity+epsilon_com[1]) )  
-  temp <- append(temp,popSize_T_fix[i,2]*exp(1-(popSize_T_fix[i,2]/carryingCapacity+epsilon_sum_res[1]) )  )
-  temp <- append(temp, popSize_T_fix[i,3]*exp(1-(popSize_T_fix[i,3]/carryingCapacity+epsilon_new_sum_of_x1_xn[1]) ) )  
+  temp <- popSize_T_fix[i,1]*exp(r*(1-(popSize_T_fix[i,1]/carryingCapacity))+eps_com[1])   
+  temp <- append(temp,popSize_T_fix[i,2]*exp(r*(1-(popSize_T_fix[i,2]/carryingCapacity))+eps_sum_res[1]) )  
+  temp <- append(temp, popSize_T_fix[i,3]*exp(r*(1-(popSize_T_fix[i,3]/carryingCapacity))+eps_new_sum_of_x1_xn[1]) )   
   popSize_T_fix <- rbind(popSize_T_fix, temp)
 }
+print(dim(popSize_T_fix))
+print(dim(popSize_T_var))
+#print(popSize_T_fix) 
+#popAbund_T_fix <- ts(popSize_T_fix,names=c("com","sum_res","new_sum_of_x1_xn"))
+#plot.ts(popAbund_T_fix)
+```
 
-popAbund_T_fix <- ts(popSize_T_fix,names=c("com","sum_res","new_sum_of_x1_xn"))
-plot.ts(popAbund_T_fix)
+```{r}
+numSimulations <- 10000
+numExtinct <- rep(0,times=3)
+
+eps_com <- scale_eps*sample(com,numSimulations)/range(com)
+eps_sum_res <- scale_eps*sample(sum_res,numSimulations)/range(sum_res)
+eps_new_sum_of_x1_xn <- scale_eps*sample(new_sum_of_x1_xn,numSimulations)/range(new_sum_of_x1_xn)
+
+for(j in 1:numSimulations){
+  initPopSize <- 100
+  popSize_T <- matrix(rep(initPopSize,3),nrow=1)
+  
+  if(r*(1-(initPopSize/carryingCapacity))+eps_com[j] < 0){numExtinct[1]<-numExtinct[1]+1} 
+  if(r*(1-(initPopSize/carryingCapacity))+eps_sum_res[j] < 0){numExtinct[2]<-numExtinct[2]+1} 
+  if(r*(1-(initPopSize/carryingCapacity))+eps_new_sum_of_x1_xn[j] < 0){numExtinct[3]<-numExtinct[3]+1} 
+  
+}
+print(numExtinct)
+
 ```
 
 ```{r}
 
+numSimulations <- 10000
+numExtinct <- rep(0,times=3)
 
+eps_com <- scale_eps*sample(com,numSimulations)/range(com)
+eps_sum_res <- scale_eps*sample(sum_res,numSimulations)/range(sum_res)
+eps_new_sum_of_x1_xn <- scale_eps*sample(new_sum_of_x1_xn,numSimulations)/range(new_sum_of_x1_xn)
+
+avgPopSize_T <- matrix(rep(0,times=3*(1+timeSteps)),nrow=(timeSteps+1),byrow=T)
+
+for(j in 1:numSimulations){
+  initPopSize <- 100
+  popSize_T <- matrix(rep(initPopSize,3),nrow=1)
+
+  for(i in 1:timeSteps){
+    temp <- popSize_T[i,1]*exp(1-(popSize_T[i,1]/carryingCapacity+eps_com[j]) )
+    temp <- append(temp,popSize_T[i,2]*exp(1-(popSize_T[i,2]/carryingCapacity+eps_sum_res[j]) )  )
+    temp <- append(temp, popSize_T[i,3]*exp(1-(popSize_T[i,3]/carryingCapacity+eps_new_sum_of_x1_xn[j]) ) )
+    popSize_T <- rbind(popSize_T, temp)
+  }
+  avgPopSize_T <- avgPopSize_T + popSize_T
+  
+  thres<- function(x){
+    thresExt <- popSize_T[1,x]
+    return(popSize_T[popSize_T[,x]<thresExt,x])
+  }
+  
+  if(length(thres(1))>0){numExtinct[1]<-numExtinct[1]+1}
+  if(length(thres(2))>0){numExtinct[2]<-numExtinct[2]+1}
+  if(length(thres(3))>0){numExtinct[3]<-numExtinct[3]+1}
+}
+arima(ts(avgPopSize_T[,1]/numSimulations))
+avgPopSize_T <- ts(avgPopSize_T/numSimulations,names=c("com","sum_res","new_sum_of_x1_xn"))
+plot.ts(avgPopSize_T)
+
+print(numExtinct)
 
 ```
