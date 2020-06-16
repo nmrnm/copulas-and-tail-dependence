@@ -12,9 +12,8 @@ library(mvtnorm)
 library(ggplot2)
 ```
 
-note that there there is dr.reumans code here as well (see ForNoah20200601.R)
 ```{r}
-
+#dr. reuman's function
 newCopulaWithTailDependece<-function(n,dim,rho,thresh_lo,thresh_hi)
 {
   U<-runif(n)
@@ -40,20 +39,7 @@ findNormalCopulaParam <- function(numSamples,dim,varSumRetain){
     # $minimum is the x value for which the minimum is achieved (note that optimize returns a list) 
     return(optimize(fOptim,c(0,1),lower=0,upper=1,maximum=FALSE)$minimum)
 }
-
-#findCovarianceMatrix(numSamples,dim,varSumRetain){
-  # We have covariance matrix where the variance of each of the marginals are given
-  # and so with this we can represente every covariance matrices with 1's along the 
-  # main diagonal can be represented as a matrix of the form as P^T*P where P is an 
-  # orthogonal matrix (so the transpose is equal to its inverse)
-  
-  
- # return()
-  
-#}
-
 ```
-
 
 ```{r}
 n<-10000
@@ -63,8 +49,6 @@ thresh_hi<-0.7
 thresh_lo<- 0
 res<-newCopulaWithTailDependece(n,dim,rho,thresh_lo,thresh_hi)
 dim(res)
-plot(res[,1],res[,2],type="p")
-plot(res[,1],res[,3],type="p")
 
 res<-qnorm(res)
 hist(res[,1],50)
@@ -73,55 +57,39 @@ hist(res[,2],50)
 
 ```{r}
 covMatrix <- matrix(data=rep(0,times=dim*dim),nrow=dim,byrow=TRUE)
-newCovMatrix <- matrix(data=rep(rho, dim*dim), nrow=dim,byrow=TRUE)
-varSumRetain <- 0 
-# covMatrix is not really needed
-# it is the covariance matrix for the marginals of the normal copula when
-# the marginals are transformed into normal dist. 
 
-#need to compact this below, this is a little bit ugly i think
 for(i in 1:dim){
   for(j in 1:(dim)){
-   if(i == j){
-      newCovMatrix[i,i] <- 1
-   }
    covMatrix[i,j] <- cov(res[,i],res[,j])
-   varSumRetain <- varSumRetain + covMatrix[i,j]
   }
 }
+
+varSumRetain <- sum(covMatrix)
 ```
 
 ```{r}
-
 rho <- findNormalCopulaParam(numSamples, dim, varSumRetain)
 newNormalCop <- normalCopula(param = rho,dim =dim)
 newNormCop <- rCopula(n, newNormalCop)
 newMultiNormMarg <- qnorm(newNormCop)
 
-new_sum_of_x1_xn <- newMultiNormMarg[,1]
-sum_res <- res[,1]
+new_sum_res <- rowSums(newMultiNormMarg)
+sum_res <- rowSums(res)
 com <- dim*res[,1]
 
-for(i in 2:dim){
-  sum_res <- sum_res + res[,i]
-  new_sum_of_x1_xn <- new_sum_of_x1_xn + newMultiNormMarg[,i] 
-}
 hist(com,50)
 var(com)
 hist(sum_res,50)
 var(sum_res)
-hist(new_sum_of_x1_xn,50)
-var(new_sum_of_x1_xn)
-
-#plot(res[,1],res[,2],type="p")
-#plot(newNormCop[,1],newNormCop[,2])
+hist(new_sum_res,50)
+var(new_sum_res)
 ```
 
 ```{r}
-valuesV <- append(append(com, sum_res),new_sum_of_x1_xn)
+valuesV <- append(append(com, sum_res),new_sum_res)
 typeV <- rep("com",n)
 typeV <- append(typeV, rep("sum_res",n))
-typeV <- append(typeV, rep("new_sum_of_x1_xn",n))
+typeV <- append(typeV, rep("new_sum_res",n))
 
 
 dataFrame <- data.frame(values = valuesV, type = typeV)
@@ -178,7 +146,4 @@ for(i in 1:(timeSteps-1)){
     popSizeRes <- rbind(popSizeRes,ricker(popSizeRes[i,],r,carryingCapacity,eps_res[i,]))
     popSizeNewRes <- rbind(popSizeNewRes,ricker(popSizeNewRes[i,],r,carryingCapacity,eps_new_res[i,]))
 }
-
-
-
 ```
