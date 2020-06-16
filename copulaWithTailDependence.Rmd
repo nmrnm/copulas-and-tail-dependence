@@ -153,20 +153,17 @@ scale_eps <- 2
 ```
 
 ```{r}
-eps_com <- rep(scale_eps*sample(com/dim)/range(com/dim),times=dim)
-eps_res <- scale_eps*sample(res[,1])/range(res[,1])
-eps_new_res <- scale_eps*sample(newMultiNormMarg[,1])/range(newMultiNormMarg[,1])
+eps_com <- rep(scale_eps*sample(com/dim,size=timeSteps)/range(com/dim),times=dim)
+eps_res <- scale_eps*sample(res[,1],size=timeSteps)/range(res[,1])
+eps_new_res <- scale_eps*sample(newMultiNormMarg[,1],size=timeSteps)/range(newMultiNormMarg[,1])
 
 for(i in 2:dim){
-  eps_res <- scale_eps*sample(res[,i])/range(res[,i])
-  eps_new_res <- scale_eps*sample(newMultiNormMarg[,1])/range(newMultiNormMarg[,1])
+  eps_res <- scale_eps*sample(res[,i],size=timeSteps)/range(res[,i])
+  eps_new_res <- scale_eps*sample(newMultiNormMarg[,1],size=timeSteps)/range(newMultiNormMarg[,1])
 }
 ```
 
 ```{r}
-
-
-
 ```
 
 ```{r}
