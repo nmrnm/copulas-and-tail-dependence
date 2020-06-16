@@ -79,6 +79,7 @@ varSumRetain <- 0
 # it is the covariance matrix for the marginals of the normal copula when
 # the marginals are transformed into normal dist. 
 
+#need to compact this below, this is a little bit ugly i think
 for(i in 1:dim){
   for(j in 1:(dim)){
    if(i == j){
@@ -95,7 +96,6 @@ for(i in 1:dim){
 rho <- findNormalCopulaParam(numSamples, dim, varSumRetain)
 newNormalCop <- normalCopula(param = rho,dim =dim)
 newNormCop <- rCopula(n, newNormalCop)
-
 newMultiNormMarg <- qnorm(newNormCop)
 
 new_sum_of_x1_xn <- newMultiNormMarg[,1]
@@ -136,22 +136,18 @@ ecdfPlot <- ecdfPlot + theme(text = element_text(size=7),
                              legend.text = element_text(size = 8),
                              panel.background = element_rect(fill = "white")) + scale_colour_brewer(palette = "Set1")
 plot(ecdfPlot)
-
-
 ```
 
 ```{r}
-
-timeSteps <- 50
-popSize_T_var <- matrix(rep(100, times = 3),nrow=1) # initial population for each of the three cases 
-popSize_T_fix <- matrix(rep(100, times = 3),nrow=1)
-popSize <- matrix(rep(100, times = 3),nrow=1)
-r <- 0 #growth-rate
+r <- 0 
 carryingCapacity <- 500
-scale_eps <- 2
+numSimulations <- 1000
 ```
 
-```{r}
+```{r, epsilon value}
+timeSteps <- 50
+scale_eps <- 2
+
 eps_com <- replicate(n=dim,
            scale_eps*sample(com/dim,size=timeSteps)/range(com/dim))
 eps_res <- replicate(n=dim,
@@ -161,6 +157,28 @@ eps_new_res <- replicate(n=dim,
 
 ```
 
-```{r}
+```{r, ricker function}
+ricker <-function(curPop,r,K,eps){
+  return(curPop*exp(r*(1-(curPop/K))+eps))
+}
+```
+
+```{r, fixed function}
+fix_func <- function(x){return(exp(x))} # arbitrary function
+```
+
+```{r, epsilon ~ environment var}
+initPopSize <- 100
+popSizeCom <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
+popSizeRes <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
+popSizeNewRes <-  matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
+
+for(i in 1:(timeSteps-1)){
+    popSizeCom <- rbind(popSizeCom,ricker(popSizeCom[i,],r,carryingCapacity,eps_com[i,]))
+    popSizeRes <- rbind(popSizeRes,ricker(popSizeRes[i,],r,carryingCapacity,eps_res[i,]))
+    popSizeNewRes <- rbind(popSizeNewRes,ricker(popSizeNewRes[i,],r,carryingCapacity,eps_new_res[i,]))
+}
+
+
 
 ```
