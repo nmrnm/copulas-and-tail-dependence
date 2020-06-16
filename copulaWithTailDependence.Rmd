@@ -57,7 +57,7 @@ findNormalCopulaParam <- function(numSamples,dim,varSumRetain){
 
 ```{r}
 n<-10000
-dim<-10
+dim<-10 
 rho<-0
 thresh_hi<-0.7
 thresh_lo<- 0
@@ -148,108 +148,19 @@ popSize_T_fix <- matrix(rep(100, times = 3),nrow=1)
 popSize <- matrix(rep(100, times = 3),nrow=1)
 r <- 0 #growth-rate
 carryingCapacity <- 500
-
 scale_eps <- 2
 ```
 
 ```{r}
-eps_com <- rep(scale_eps*sample(com/dim,size=timeSteps)/range(com/dim),times=dim)
-eps_res <- scale_eps*sample(res[,1],size=timeSteps)/range(res[,1])
-eps_new_res <- scale_eps*sample(newMultiNormMarg[,1],size=timeSteps)/range(newMultiNormMarg[,1])
-
-for(i in 2:dim){
-  eps_res <- scale_eps*sample(res[,i],size=timeSteps)/range(res[,i])
-  eps_new_res <- scale_eps*sample(newMultiNormMarg[,1],size=timeSteps)/range(newMultiNormMarg[,1])
-}
-```
-
-```{r}
-```
-
-```{r}
-eps_com <- scale_eps*sample(com,timeSteps)/range(com)
-eps_sum_res <- scale_eps*sample(sum_res,timeSteps)/range(sum_res)
-eps_new_sum_of_x1_xn <- scale_eps*sample(new_sum_of_x1_xn,timeSteps)/range(new_sum_of_x1_xn)
-
-for(i in 1:timeSteps){
-  temp <- popSize_T_var[i,1]*exp(r*(1-(popSize_T_var[i,1]/carryingCapacity))+eps_com[i]) 
-  temp <- append(temp,popSize_T_var[i,2]*exp(r*(1-(popSize_T_var[i,2]/carryingCapacity))+eps_sum_res[i]) )  
-  temp <- append(temp, popSize_T_var[i,3]*exp(r*(1-(popSize_T_var[i,3]/carryingCapacity))+eps_new_sum_of_x1_xn[i]) )   
-  popSize_T_var <- rbind(popSize_T_var, temp)
-}
-
-popAbund_T_var <- ts(popSize_T_var,names=c("com","sum_res","new_sum_of_x1_xn"))
-plot.ts(popAbund_T_var)
-
-for(i in 1:timeSteps){
-  temp <- popSize_T_fix[i,1]*exp(r*(1-(popSize_T_fix[i,1]/carryingCapacity))+eps_com[1])   
-  temp <- append(temp,popSize_T_fix[i,2]*exp(r*(1-(popSize_T_fix[i,2]/carryingCapacity))+eps_sum_res[1]) )  
-  temp <- append(temp, popSize_T_fix[i,3]*exp(r*(1-(popSize_T_fix[i,3]/carryingCapacity))+eps_new_sum_of_x1_xn[1]) )   
-  popSize_T_fix <- rbind(popSize_T_fix, temp)
-}
-print(dim(popSize_T_fix))
-print(dim(popSize_T_var))
-#print(popSize_T_fix) 
-#popAbund_T_fix <- ts(popSize_T_fix,names=c("com","sum_res","new_sum_of_x1_xn"))
-#plot.ts(popAbund_T_fix)
-```
-
-```{r}
-numSimulations <- 10000
-numExtinct <- rep(0,times=3)
-
-eps_com <- scale_eps*sample(com,numSimulations)/range(com)
-eps_sum_res <- scale_eps*sample(sum_res,numSimulations)/range(sum_res)
-eps_new_sum_of_x1_xn <- scale_eps*sample(new_sum_of_x1_xn,numSimulations)/range(new_sum_of_x1_xn)
-
-for(j in 1:numSimulations){
-  initPopSize <- 100
-  popSize_T <- matrix(rep(initPopSize,3),nrow=1)
-  
-  if(r*(1-(initPopSize/carryingCapacity))+eps_com[j] < 0){numExtinct[1]<-numExtinct[1]+1} 
-  if(r*(1-(initPopSize/carryingCapacity))+eps_sum_res[j] < 0){numExtinct[2]<-numExtinct[2]+1} 
-  if(r*(1-(initPopSize/carryingCapacity))+eps_new_sum_of_x1_xn[j] < 0){numExtinct[3]<-numExtinct[3]+1} 
-  
-}
-print(numExtinct)
+eps_com <- replicate(n=dim,
+           scale_eps*sample(com/dim,size=timeSteps)/range(com/dim))
+eps_res <- replicate(n=dim,
+           expr=scale_eps*sample(res[,1:dim],size=timeSteps)/range(res[,1:dim]))
+eps_new_res <- replicate(n=dim,
+               expr=scale_eps*sample(newMultiNormMarg[,1:dim],size=timeSteps)/range(newMultiNormMarg[,1:dim]))
 
 ```
 
 ```{r}
-
-numSimulations <- 10000
-numExtinct <- rep(0,times=3)
-
-eps_com <- scale_eps*sample(com,numSimulations)/range(com)
-eps_sum_res <- scale_eps*sample(sum_res,numSimulations)/range(sum_res)
-eps_new_sum_of_x1_xn <- scale_eps*sample(new_sum_of_x1_xn,numSimulations)/range(new_sum_of_x1_xn)
-
-avgPopSize_T <- matrix(rep(0,times=3*(1+timeSteps)),nrow=(timeSteps+1),byrow=T)
-
-for(j in 1:numSimulations){
-  initPopSize <- 100
-  popSize_T <- matrix(rep(initPopSize,3),nrow=1)
-
-  for(i in 1:timeSteps){
-    temp <- popSize_T[i,1]*exp(1-(popSize_T[i,1]/carryingCapacity+eps_com[j]) )
-    temp <- append(temp,popSize_T[i,2]*exp(1-(popSize_T[i,2]/carryingCapacity+eps_sum_res[j]) )  )
-    temp <- append(temp, popSize_T[i,3]*exp(1-(popSize_T[i,3]/carryingCapacity+eps_new_sum_of_x1_xn[j]) ) )
-    popSize_T <- rbind(popSize_T, temp)
-  }
-  avgPopSize_T <- avgPopSize_T + popSize_T
-  
-  thres<- function(x){
-    thresExt <- popSize_T[1,x]
-    return(popSize_T[popSize_T[,x]<thresExt,x])
-  }
-  
-  if(length(thres(1))>0){numExtinct[1]<-numExtinct[1]+1}
-  if(length(thres(2))>0){numExtinct[2]<-numExtinct[2]+1}
-  if(length(thres(3))>0){numExtinct[3]<-numExtinct[3]+1}
-}
-avgPopSize_T <- ts(avgPopSize_T/numSimulations,names=c("com","sum_res","new_sum_of_x1_xn"))
-plot.ts(avgPopSize_T)
-
-print(numExtinct)
 
 ```
