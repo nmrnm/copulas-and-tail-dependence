@@ -147,3 +147,23 @@ for(i in 1:(timeSteps-1)){
     popSizeNewRes <- rbind(popSizeNewRes,ricker(popSizeNewRes[i,],r,carryingCapacity,eps_new_res[i,]))
 }
 ```
+
+```{r}
+comTS <- ts(popSizeCom,names=sprintf("com%s",seq(1:dim)))
+resTS <- ts(popSizeRes,names=sprintf("res%s",seq(1:dim)))
+newResTS <- ts(popSizeCom,names=sprintf("newRes%s",seq(1:dim)))
+
+totalPopSizeCom <- rowSums(popSizeCom)
+totalPopSizeRes <- rowSums(popSizeRes)
+totalPopSizeNewRes <- rowSums(popSizeNewRes)
+
+sumTS <- ts( matrix(data=cbind(totalPopSizeCom,totalPopSizeRes,totalPopSizeNewRes),ncol=3),
+             names=c("totalPopSizeCom","totalPopSizeRes","totalPopSizeNewRes"))
+```
+
+```{r}
+plot.ts(comTS)
+plot.ts(resTS)
+plot.ts(newResTS)
+plot.ts(sumTS)
+```
