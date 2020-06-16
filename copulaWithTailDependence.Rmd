@@ -145,21 +145,29 @@ plot(ecdfPlot)
 timeSteps <- 50
 popSize_T_var <- matrix(rep(100, times = 3),nrow=1) # initial population for each of the three cases 
 popSize_T_fix <- matrix(rep(100, times = 3),nrow=1)
+popSize <- matrix(rep(100, times = 3),nrow=1)
 r <- 0 #growth-rate
 carryingCapacity <- 500
-
-
-# numEps <- timeSteps + 100 
-# ecdf_com <- ecdf(com)
-# ecdf_sum_res <-ecdf(sum_res)
-# ecdf_new_sum_of_x1_xn <- ecdf(new_sum_of_x1_xn)
-# epsilon_com <- ecdf_com(sample(com, numEps))
-# epsilon_sum_res <- ecdf_sum_res(sample(sum_res,numEps))
-# epsilon_new_sum_of_x1_xn <- ecdf_new_sum_of_x1_xn(sample(new_sum_of_x1_xn, numEps))
 
 scale_eps <- 2
 ```
 
+```{r}
+eps_com <- rep(scale_eps*sample(com/dim)/range(com/dim),times=dim)
+eps_res <- scale_eps*sample(res[,1])/range(res[,1])
+eps_new_res <- scale_eps*sample(newMultiNormMarg[,1])/range(newMultiNormMarg[,1])
+
+for(i in 2:dim){
+  eps_res <- scale_eps*sample(res[,i])/range(res[,i])
+  eps_new_res <- scale_eps*sample(newMultiNormMarg[,1])/range(newMultiNormMarg[,1])
+}
+```
+
+```{r}
+
+
+
+```
 
 ```{r}
 eps_com <- scale_eps*sample(com,timeSteps)/range(com)
