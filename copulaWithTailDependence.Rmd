@@ -59,7 +59,7 @@ findNormalCopulaParam <- function(numSamples,dim,varSumRetain){
 n<-10000
 dim<-10
 rho<-0
-thresh_hi<-0.9
+thresh_hi<-0.7
 thresh_lo<- 0
 res<-newCopulaWithTailDependece(n,dim,rho,thresh_lo,thresh_hi)
 dim(res)
@@ -242,7 +242,6 @@ for(j in 1:numSimulations){
   if(length(thres(2))>0){numExtinct[2]<-numExtinct[2]+1}
   if(length(thres(3))>0){numExtinct[3]<-numExtinct[3]+1}
 }
-arima(ts(avgPopSize_T[,1]/numSimulations))
 avgPopSize_T <- ts(avgPopSize_T/numSimulations,names=c("com","sum_res","new_sum_of_x1_xn"))
 plot.ts(avgPopSize_T)
 
