@@ -109,10 +109,6 @@ plot(ecdfPlot)
 ```{r}
 r <- 0 
 carryingCapacity <- 500
-numSimulations <- 1000
-```
-
-```{r, epsilon value}
 timeSteps <- 50
 scale_eps <- 2
 
@@ -126,16 +122,52 @@ eps_new_res <- replicate(n=dim,
 ```
 
 ```{r, ricker function}
-ricker <-function(curPop,r,K,eps){
-  return(curPop*exp(r*(1-(curPop/K))+eps))
-}
+
 ```
 
 ```{r, fixed function}
-fix_func <- function(x){return(exp(x))} # arbitrary function
+# arbitrary function
+fix_func <- function(x,alpha){return(alpha*x)} 
+
+#let us say that the population resulting from marginals x1, x2, ... ,xn 
+#can be modeled by the functions fix_func with i = alpha where i = 1, 2, ... n
+# so we have the following
+
+initPopSize <- 100
+popSizeCom <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
+popSizeRes <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
+popSizeNewRes <-  matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
+
+for(i in 1:(timeSteps-1)){
+    popSizeCom <- rbind(popSizeCom,fix_func(eps_com[i,],i*1:dim))
+    popSizeRes <- rbind(popSizeRes,fix_func(eps_res[i,],i*1:dim))
+    popSizeNewRes <- rbind(popSizeNewRes,fix_func(eps_new_res[i,],i*1:dim))
+}
+```
+
+```{r}
+comTS <- ts(popSizeCom,names=sprintf("com%s",seq(1:dim)))
+resTS <- ts(popSizeRes,names=sprintf("res%s",seq(1:dim)))
+newResTS <- ts(popSizeCom,names=sprintf("newRes%s",seq(1:dim)))
+
+totalPopSizeCom <- rowSums(popSizeCom)
+totalPopSizeRes <- rowSums(popSizeRes)
+totalPopSizeNewRes <- rowSums(popSizeNewRes)
+
+sumTS <- ts( matrix(data=cbind(totalPopSizeCom,totalPopSizeRes,totalPopSizeNewRes),ncol=3),
+             names=c("totalPopSizeCom","totalPopSizeRes","totalPopSizeNewRes"))
+
+plot.ts(comTS)
+plot.ts(resTS)
+plot.ts(newResTS)
+plot.ts(sumTS,cex.lab=0.8)
 ```
 
 ```{r, epsilon ~ environment var}
+ricker <-function(curPop,r,K,eps){
+  return(curPop*exp(r*(1-(curPop/K))+eps))
+}
+
 initPopSize <- 100
 popSizeCom <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
 popSizeRes <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
@@ -159,11 +191,58 @@ totalPopSizeNewRes <- rowSums(popSizeNewRes)
 
 sumTS <- ts( matrix(data=cbind(totalPopSizeCom,totalPopSizeRes,totalPopSizeNewRes),ncol=3),
              names=c("totalPopSizeCom","totalPopSizeRes","totalPopSizeNewRes"))
-```
 
-```{r}
 plot.ts(comTS)
 plot.ts(resTS)
 plot.ts(newResTS)
-plot.ts(sumTS)
+plot.ts(sumTS,cex.lab=0.8)
 ```
+
+```{r}
+numSimulations <- 1000
+numExtinctCom <- rep(0, times= dim)
+numExtinctRes <- rep(0, times= dim)
+numExtinctNewRes <- rep(0, times= dim)
+
+for(i in 1:numSimulations){
+  eps_com <- replicate(n=dim,
+           scale_eps*sample(com/dim,size=timeSteps)/range(com/dim))
+  eps_res <- replicate(n=dim,
+             expr=scale_eps*sample(res[,1:dim],size=timeSteps)/range(res[,1:dim]))
+  eps_new_res <- replicate(n=dim,
+                 expr=scale_eps*sample(newMultiNormMarg[,1:dim],size=timeSteps)/range(newMultiNormMarg[,1:dim]))
+   
+  initPopSize <- 100
+  popSizeCom <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
+  popSizeRes <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
+  popSizeNewRes <-  matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
+  
+  for(i in 1:(timeSteps-1)){
+      popSizeCom <- rbind(popSizeCom,ricker(popSizeCom[i,],r,carryingCapacity,eps_com[i,]))
+      popSizeRes <- rbind(popSizeRes,ricker(popSizeRes[i,],r,carryingCapacity,eps_res[i,]))
+      popSizeNewRes <- rbind(popSizeNewRes,ricker(popSizeNewRes[i,],r,carryingCapacity,eps_new_res[i,]))
+  }  
+  
+  tExt <- initPopSize/2 
+  thres<-function(popVec,thresExt){
+    return(popVec[popVec<thresExt])
+  }
+    
+  for(i in 1:dim){
+    if(length(thres(popSizeCom[,i],tExt))>0){numExtinctCom[i]<-numExtinctCom[i]+1}
+    if(length(thres(popSizeRes[,i],tExt))>0){numExtinctRes[i]<-numExtinctRes[i]+1}
+    if(length(thres(popSizeNewRes[,i],tExt))>0){numExtinctNewRes[i]<-numExtinctNewRes[i]+1}
+  }
+}
+print(numExtinctCom)
+print(numExtinctRes)
+print(numExtinctNewRes)
+print(mean(numExtinctCom))
+print(mean(numExtinctRes))
+print(mean(numExtinctNewRes))
+print(var(numExtinctCom))
+print(var(numExtinctRes))
+print(var(numExtinctNewRes))
+```
+
+
