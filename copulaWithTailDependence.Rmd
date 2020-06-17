@@ -204,6 +204,10 @@ numExtinctCom <- rep(0, times= dim)
 numExtinctRes <- rep(0, times= dim)
 numExtinctNewRes <- rep(0, times= dim)
 
+asymptPopSizeCom <- matrix(data=rep(0,times=dim*timeSteps),nrow=timeSteps)
+asymptPopSizeRes <- matrix(data=rep(0,times=dim*timeSteps),nrow=timeSteps)
+asymptPopSizeNewRes <- matrix(data=rep(0,times=dim*timeSteps),nrow=timeSteps)
+
 for(i in 1:numSimulations){
   eps_com <- replicate(n=dim,
            scale_eps*sample(com/dim,size=timeSteps)/range(com/dim))
@@ -223,6 +227,10 @@ for(i in 1:numSimulations){
       popSizeNewRes <- rbind(popSizeNewRes,ricker(popSizeNewRes[i,],r,carryingCapacity,eps_new_res[i,]))
   }  
   
+  asymptPopSizeCom <- asymptPopSizeCom + popSizeCom
+  asymptPopSizeRes  <- asymptPopSizeRes + popSizeRes
+  asymptPopSizeNewRes  <- asymptPopSizeNewRes + popSizeNewRes
+  
   tExt <- initPopSize/2 
   thres<-function(popVec,thresExt){
     return(popVec[popVec<thresExt])
@@ -234,6 +242,7 @@ for(i in 1:numSimulations){
     if(length(thres(popSizeNewRes[,i],tExt))>0){numExtinctNewRes[i]<-numExtinctNewRes[i]+1}
   }
 }
+
 print(numExtinctCom)
 print(numExtinctRes)
 print(numExtinctNewRes)
@@ -245,4 +254,27 @@ print(var(numExtinctRes))
 print(var(numExtinctNewRes))
 ```
 
+```{r}
+# average time series plot after many iterations
+
+asymptPopSizeCom <- asymptPopSizeCom / numSimulations
+asymptPopSizeRes  <- asymptPopSizeRes / numSimulations 
+asymptPopSizeNewRes  <- asymptPopSizeNewRes /numSimulations 
+
+asymptComTS <- ts(asymptPopSizeCom,names=sprintf("asymptcom%s",seq(1:dim)))
+asymptResTS <- ts(asymptPopSizeRes,names=sprintf("asymptres%s",seq(1:dim)))
+asymptNewResTS <- ts(asymptPopSizeCom,names=sprintf("asymptnewRes%s",seq(1:dim)))
+
+asymptTotalPopSizeCom <- rowSums(asymptPopSizeCom)
+asymptTotalPopSizeRes <- rowSums(asymptPopSizeRes)
+asymptTotalPopSizeNewRes <- rowSums(asymptPopSizeNewRes)
+
+asymptSumTS <- ts( matrix(data=cbind(totalPopSizeCom,totalPopSizeRes,totalPopSizeNewRes),ncol=3),
+             names=c("asymptTotalPopSizeCom","asymptTotalPopSizeRes","asymptTotalPopSizeNewRes"))
+
+plot.ts(asymptComTS,cex.lab=0.5)
+plot.ts(asymptResTS,cex.lab=0.5)
+plot.ts(asymptNewResTS,cex.lab=0.5)
+plot.ts(asymptSumTS,cex.lab=0.5)
+```
 
