@@ -72,13 +72,15 @@ rho <- findNormalCopulaParam(numSamples, dim, varSumRetain)
 newNormalCop <- normalCopula(param = rho,dim =dim)
 newNormCop <- rCopula(n, newNormalCop)
 newMultiNormMarg <- qnorm(newNormCop)
+com_mat <- matrix(data=replicate(n=dim,res[,1]),ncol=dim)
+
 
 new_sum_res <- rowSums(newMultiNormMarg)
 sum_res <- rowSums(res)
-com <- dim*res[,1]
+sum_com <- dim*res[,1] # or rowSums(com_mat) is equivalent
 
-hist(com,50)
-var(com)
+hist(sum_com,50)
+var(sum_com)
 hist(sum_res,50)
 var(sum_res)
 hist(new_sum_res,50)
@@ -86,8 +88,8 @@ var(new_sum_res)
 ```
 
 ```{r}
-valuesV <- append(append(com, sum_res),new_sum_res)
-typeV <- rep("com",n)
+valuesV <- append(append(sum_com, sum_res),new_sum_res)
+typeV <- rep("sum_com",n)
 typeV <- append(typeV, rep("sum_res",n))
 typeV <- append(typeV, rep("new_sum_res",n))
 
@@ -108,20 +110,13 @@ plot(ecdfPlot)
 
 ```{r}
 r <- 0 
+initPopSize <- 100
 carryingCapacity <- 500
 timeSteps <- 50
-scale_eps <- 2
 
-eps_com <- replicate(n=dim,
-           scale_eps*sample(com/dim,size=timeSteps)/range(com/dim))
-eps_res <- replicate(n=dim,
-           expr=scale_eps*sample(res[,1:dim],size=timeSteps)/range(res[,1:dim]))
-eps_new_res <- replicate(n=dim,
-               expr=scale_eps*sample(newMultiNormMarg[,1:dim],size=timeSteps)/range(newMultiNormMarg[,1:dim]))
-
-```
-
-```{r, ricker function}
+eps_res <- res[1:timeSteps,] 
+eps_com <- com_mat[1:timeSteps,]
+eps_new_res <- newMultiNormMarg[1:timeSteps,]
 
 ```
 
@@ -133,12 +128,11 @@ fix_func <- function(x,alpha){return(alpha*x)}
 #can be modeled by the functions fix_func with i = alpha where i = 1, 2, ... n
 # so we have the following
 
-initPopSize <- 100
 popSizeCom <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
 popSizeRes <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
 popSizeNewRes <-  matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
 
-for(i in 1:(timeSteps-1)){
+for(i in 1:(timeSteps)){
     popSizeCom <- rbind(popSizeCom,fix_func(eps_com[i,],i*1:dim))
     popSizeRes <- rbind(popSizeRes,fix_func(eps_res[i,],i*1:dim))
     popSizeNewRes <- rbind(popSizeNewRes,fix_func(eps_new_res[i,],i*1:dim))
@@ -148,7 +142,7 @@ for(i in 1:(timeSteps-1)){
 ```{r}
 comTS <- ts(popSizeCom,names=sprintf("com%s",seq(1:dim)))
 resTS <- ts(popSizeRes,names=sprintf("res%s",seq(1:dim)))
-newResTS <- ts(popSizeCom,names=sprintf("newRes%s",seq(1:dim)))
+newResTS <- ts(popSizeNewRes,names=sprintf("newRes%s",seq(1:dim)))
 
 totalPopSizeCom <- rowSums(popSizeCom)
 totalPopSizeRes <- rowSums(popSizeRes)
@@ -168,22 +162,29 @@ ricker <-function(curPop,r,K,eps){
   return(curPop*exp(r*(1-(curPop/K))+eps))
 }
 
-initPopSize <- 100
 popSizeCom <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
 popSizeRes <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
 popSizeNewRes <-  matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
 
-for(i in 1:(timeSteps-1)){
+for(i in 1:(timeSteps)){
     popSizeCom <- rbind(popSizeCom,ricker(popSizeCom[i,],r,carryingCapacity,eps_com[i,]))
     popSizeRes <- rbind(popSizeRes,ricker(popSizeRes[i,],r,carryingCapacity,eps_res[i,]))
     popSizeNewRes <- rbind(popSizeNewRes,ricker(popSizeNewRes[i,],r,carryingCapacity,eps_new_res[i,]))
 }
+
+# covMatPopCom <- matrix(data=rep(0,times=dim*dim),nrow=dim)
+# for(i in 1:dim){
+#   for(j in 1:dim){
+#     covMatPopCom[i,j] <- cov(popSizeCom[,i],popSizeCom[,j])
+#   }
+# }
+
 ```
 
 ```{r}
 comTS <- ts(popSizeCom,names=sprintf("com%s",seq(1:dim)))
 resTS <- ts(popSizeRes,names=sprintf("res%s",seq(1:dim)))
-newResTS <- ts(popSizeCom,names=sprintf("newRes%s",seq(1:dim)))
+newResTS <- ts(popSizeNewRes,names=sprintf("newRes%s",seq(1:dim)))
 
 totalPopSizeCom <- rowSums(popSizeCom)
 totalPopSizeRes <- rowSums(popSizeRes)
@@ -204,24 +205,21 @@ numExtinctCom <- rep(0, times= dim)
 numExtinctRes <- rep(0, times= dim)
 numExtinctNewRes <- rep(0, times= dim)
 
-asymptPopSizeCom <- matrix(data=rep(0,times=dim*timeSteps),nrow=timeSteps)
-asymptPopSizeRes <- matrix(data=rep(0,times=dim*timeSteps),nrow=timeSteps)
-asymptPopSizeNewRes <- matrix(data=rep(0,times=dim*timeSteps),nrow=timeSteps)
+asymptPopSizeCom <- matrix(data=rep(0,times=dim*(timeSteps+1)),nrow=timeSteps+1)
+asymptPopSizeRes <- matrix(data=rep(0,times=dim*(timeSteps+1)),nrow=timeSteps+1)
+asymptPopSizeNewRes <- matrix(data=rep(0,times=dim*(timeSteps+1)),nrow=timeSteps+1)
 
 for(i in 1:numSimulations){
-  eps_com <- replicate(n=dim,
-           scale_eps*sample(com/dim,size=timeSteps)/range(com/dim))
-  eps_res <- replicate(n=dim,
-             expr=scale_eps*sample(res[,1:dim],size=timeSteps)/range(res[,1:dim]))
-  eps_new_res <- replicate(n=dim,
-                 expr=scale_eps*sample(newMultiNormMarg[,1:dim],size=timeSteps)/range(newMultiNormMarg[,1:dim]))
-   
+  eps_res <- res[1:timeSteps,] 
+  eps_com <- com_mat[1:timeSteps,]
+  eps_new_res <- newMultiNormMarg[1:timeSteps,]
+
   initPopSize <- 100
   popSizeCom <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
   popSizeRes <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
   popSizeNewRes <-  matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
   
-  for(i in 1:(timeSteps-1)){
+  for(i in 1:(timeSteps)){
       popSizeCom <- rbind(popSizeCom,ricker(popSizeCom[i,],r,carryingCapacity,eps_com[i,]))
       popSizeRes <- rbind(popSizeRes,ricker(popSizeRes[i,],r,carryingCapacity,eps_res[i,]))
       popSizeNewRes <- rbind(popSizeNewRes,ricker(popSizeNewRes[i,],r,carryingCapacity,eps_new_res[i,]))
@@ -263,13 +261,13 @@ asymptPopSizeNewRes  <- asymptPopSizeNewRes /numSimulations
 
 asymptComTS <- ts(asymptPopSizeCom,names=sprintf("asymptcom%s",seq(1:dim)))
 asymptResTS <- ts(asymptPopSizeRes,names=sprintf("asymptres%s",seq(1:dim)))
-asymptNewResTS <- ts(asymptPopSizeCom,names=sprintf("asymptnewRes%s",seq(1:dim)))
+asymptNewResTS <- ts(asymptPopSizeRes,names=sprintf("asymptnewRes%s",seq(1:dim)))
 
 asymptTotalPopSizeCom <- rowSums(asymptPopSizeCom)
 asymptTotalPopSizeRes <- rowSums(asymptPopSizeRes)
 asymptTotalPopSizeNewRes <- rowSums(asymptPopSizeNewRes)
 
-asymptSumTS <- ts( matrix(data=cbind(totalPopSizeCom,totalPopSizeRes,totalPopSizeNewRes),ncol=3),
+asymptSumTS <- ts( matrix(data=cbind(asymptTotalPopSizeCom,asymptTotalPopSizeRes,asymptTotalPopSizeNewRes),ncol=3),
              names=c("asymptTotalPopSizeCom","asymptTotalPopSizeRes","asymptTotalPopSizeNewRes"))
 
 plot.ts(asymptComTS,cex.lab=0.5)
