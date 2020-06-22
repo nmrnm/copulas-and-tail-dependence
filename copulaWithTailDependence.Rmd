@@ -54,7 +54,6 @@ res<-qnorm(res)
 hist(res[,1],50)
 hist(res[,2],50)
 ```
-
 ```{r}
 covMatrix <- matrix(data=rep(0,times=dim*dim),nrow=dim,byrow=TRUE)
 
@@ -114,47 +113,47 @@ initPopSize <- 100
 carryingCapacity <- 500
 timeSteps <- 50
 
-eps_res <- res[1:timeSteps,] 
-eps_com <- com_mat[1:timeSteps,]
-eps_new_res <- newMultiNormMarg[1:timeSteps,]
+eps_res <- res[sample(nrow(res),size=timeSteps,replace=TRUE),]
+eps_com <- com_mat[sample(nrow(res),size=timeSteps,replace=TRUE),]
+eps_new_res <- newMultiNormMarg[sample(nrow(newMultiNormMarg),size=timeSteps,replace=TRUE),]
 
 ```
 
 ```{r, fixed function}
-# arbitrary function
-fix_func <- function(x,alpha){return(alpha*x)} 
-
-#let us say that the population resulting from marginals x1, x2, ... ,xn 
-#can be modeled by the functions fix_func with i = alpha where i = 1, 2, ... n
-# so we have the following
-
-popSizeCom <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
-popSizeRes <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
-popSizeNewRes <-  matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
-
-for(i in 1:(timeSteps)){
-    popSizeCom <- rbind(popSizeCom,fix_func(eps_com[i,],i*1:dim))
-    popSizeRes <- rbind(popSizeRes,fix_func(eps_res[i,],i*1:dim))
-    popSizeNewRes <- rbind(popSizeNewRes,fix_func(eps_new_res[i,],i*1:dim))
-}
+# # arbitrary function
+# fix_func <- function(x,alpha){return(alpha*x)} 
+# 
+# #let us say that the population resulting from marginals x1, x2, ... ,xn 
+# #can be modeled by the functions fix_func with i = alpha where i = 1, 2, ... n
+# # so we have the following
+# 
+# popSizeCom <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
+# popSizeRes <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
+# popSizeNewRes <-  matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
+# 
+# for(i in 1:(timeSteps)){
+#     popSizeCom <- rbind(popSizeCom,fix_func(eps_com[i,],i*1:dim))
+#     popSizeRes <- rbind(popSizeRes,fix_func(eps_res[i,],i*1:dim))
+#     popSizeNewRes <- rbind(popSizeNewRes,fix_func(eps_new_res[i,],i*1:dim))
+# }
 ```
 
 ```{r}
-comTS <- ts(popSizeCom,names=sprintf("com%s",seq(1:dim)))
-resTS <- ts(popSizeRes,names=sprintf("res%s",seq(1:dim)))
-newResTS <- ts(popSizeNewRes,names=sprintf("newRes%s",seq(1:dim)))
-
-totalPopSizeCom <- rowSums(popSizeCom)
-totalPopSizeRes <- rowSums(popSizeRes)
-totalPopSizeNewRes <- rowSums(popSizeNewRes)
-
-sumTS <- ts( matrix(data=cbind(totalPopSizeCom,totalPopSizeRes,totalPopSizeNewRes),ncol=3),
-             names=c("totalPopSizeCom","totalPopSizeRes","totalPopSizeNewRes"))
-
-plot.ts(comTS)
-plot.ts(resTS)
-plot.ts(newResTS)
-plot.ts(sumTS,cex.lab=0.8)
+# comTS <- ts(popSizeCom,names=sprintf("com%s",seq(1:dim)))
+# resTS <- ts(popSizeRes,names=sprintf("res%s",seq(1:dim)))
+# newResTS <- ts(popSizeNewRes,names=sprintf("newRes%s",seq(1:dim)))
+# 
+# totalPopSizeCom <- rowSums(popSizeCom)
+# totalPopSizeRes <- rowSums(popSizeRes)
+# totalPopSizeNewRes <- rowSums(popSizeNewRes)
+# 
+# sumTS <- ts( matrix(data=cbind(totalPopSizeCom,totalPopSizeRes,totalPopSizeNewRes),ncol=3),
+#              names=c("totalPopSizeCom","totalPopSizeRes","totalPopSizeNewRes"))
+# 
+# plot.ts(comTS)
+# plot.ts(resTS)
+# plot.ts(newResTS)
+# plot.ts(sumTS,cex.lab=0.8)
 ```
 
 ```{r, epsilon ~ environment var}
@@ -171,14 +170,22 @@ for(i in 1:(timeSteps)){
     popSizeRes <- rbind(popSizeRes,ricker(popSizeRes[i,],r,carryingCapacity,eps_res[i,]))
     popSizeNewRes <- rbind(popSizeNewRes,ricker(popSizeNewRes[i,],r,carryingCapacity,eps_new_res[i,]))
 }
+```
 
-# covMatPopCom <- matrix(data=rep(0,times=dim*dim),nrow=dim)
-# for(i in 1:dim){
-#   for(j in 1:dim){
-#     covMatPopCom[i,j] <- cov(popSizeCom[,i],popSizeCom[,j])
-#   }
-# }
-
+```{r}
+corMatPopCom <- matrix(data=rep(0,times=dim*dim),nrow=dim)
+corMatPopRes <- matrix(data=rep(0,times=dim*dim),nrow=dim)
+corMatPopNewRes <- matrix(data=rep(0,times=dim*dim),nrow=dim)
+for(i in 1:dim){
+  for(j in 1:dim){
+    corMatPopCom[i,j] <- cor(popSizeCom[,i],popSizeCom[,j])
+    corMatPopRes[i,j] <- cor(popSizeRes[,i],popSizeRes[,j])
+    corMatPopNewRes[i,j] <- cor(popSizeNewRes[,i],popSizeNewRes[,j])
+  }
+}
+print(corMatPopCom)
+print(corMatPopRes)
+print(corMatPopNewRes)
 ```
 
 ```{r}
@@ -210,9 +217,9 @@ asymptPopSizeRes <- matrix(data=rep(0,times=dim*(timeSteps+1)),nrow=timeSteps+1)
 asymptPopSizeNewRes <- matrix(data=rep(0,times=dim*(timeSteps+1)),nrow=timeSteps+1)
 
 for(i in 1:numSimulations){
-  eps_res <- res[1:timeSteps,] 
-  eps_com <- com_mat[1:timeSteps,]
-  eps_new_res <- newMultiNormMarg[1:timeSteps,]
+  eps_res <- res[sample(nrow(res),size=timeSteps,replace=TRUE),]
+  eps_com <- com_mat[sample(nrow(res),size=timeSteps,replace=TRUE),]
+  eps_new_res <- newMultiNormMarg[sample(nrow(newMultiNormMarg),size=timeSteps,replace=TRUE),]
 
   initPopSize <- 100
   popSizeCom <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
