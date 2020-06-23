@@ -45,8 +45,8 @@ findNormalCopulaParam <- function(numSamples,dim,varSumRetain){
 n<-10000
 dim<-10 
 rho<-0
-thresh_hi<-0.7
-thresh_lo<- 0
+thresh_hi<- 1
+thresh_lo<- 0.3
 res<-newCopulaWithTailDependece(n,dim,rho,thresh_lo,thresh_hi)
 dim(res)
 
@@ -108,8 +108,8 @@ plot(ecdfPlot)
 ```
 
 ```{r}
-r <- 0 
-initPopSize <- 100
+r <- 1 
+initPopSize <- 500 
 carryingCapacity <- 500
 timeSteps <- 50
 
@@ -173,6 +173,18 @@ for(i in 1:(timeSteps)){
 ```
 
 ```{r}
+eps <- res[sample(nrow(res),size=1000,replace=TRUE),]
+popSize <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
+
+for(i in 1:1000){
+  popSize<- rbind(popSize,ricker(popSize[i,],r,carryingCapacity,eps[i,]))
+}
+popSize <- rowSums(popSize)
+plot.ts(popSize)
+hist(popSize,50)
+```
+
+```{r}
 corMatPopCom <- matrix(data=rep(0,times=dim*dim),nrow=dim)
 corMatPopRes <- matrix(data=rep(0,times=dim*dim),nrow=dim)
 corMatPopNewRes <- matrix(data=rep(0,times=dim*dim),nrow=dim)
@@ -183,9 +195,9 @@ for(i in 1:dim){
     corMatPopNewRes[i,j] <- cor(popSizeNewRes[,i],popSizeNewRes[,j])
   }
 }
-print(corMatPopCom)
-print(corMatPopRes)
-print(corMatPopNewRes)
+# print(corMatPopCom)
+# print(corMatPopRes)
+# print(corMatPopNewRes)
 ```
 
 ```{r}
@@ -201,7 +213,7 @@ sumTS <- ts( matrix(data=cbind(totalPopSizeCom,totalPopSizeRes,totalPopSizeNewRe
              names=c("totalPopSizeCom","totalPopSizeRes","totalPopSizeNewRes"))
 
 plot.ts(comTS)
-plot.ts(resTS)
+plot.ts(log10(resTS))
 plot.ts(newResTS)
 plot.ts(sumTS,cex.lab=0.8)
 ```
@@ -226,11 +238,13 @@ for(i in 1:numSimulations){
   popSizeRes <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
   popSizeNewRes <-  matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
   
+  
   for(i in 1:(timeSteps)){
       popSizeCom <- rbind(popSizeCom,ricker(popSizeCom[i,],r,carryingCapacity,eps_com[i,]))
       popSizeRes <- rbind(popSizeRes,ricker(popSizeRes[i,],r,carryingCapacity,eps_res[i,]))
       popSizeNewRes <- rbind(popSizeNewRes,ricker(popSizeNewRes[i,],r,carryingCapacity,eps_new_res[i,]))
-  }  
+      
+  }
   
   asymptPopSizeCom <- asymptPopSizeCom + popSizeCom
   asymptPopSizeRes  <- asymptPopSizeRes + popSizeRes
@@ -240,14 +254,13 @@ for(i in 1:numSimulations){
   thres<-function(popVec,thresExt){
     return(popVec[popVec<thresExt])
   }
-    
+  
   for(i in 1:dim){
-    if(length(thres(popSizeCom[,i],tExt))>0){numExtinctCom[i]<-numExtinctCom[i]+1}
-    if(length(thres(popSizeRes[,i],tExt))>0){numExtinctRes[i]<-numExtinctRes[i]+1}
-    if(length(thres(popSizeNewRes[,i],tExt))>0){numExtinctNewRes[i]<-numExtinctNewRes[i]+1}
+    if(length(thres(popSizeCom[,i]),tExt)>0){numExtinctCom[i]<-numExtinctCom[i]+1}
+    if(length(thres(popSizeRes[,i],tExt)>0)){numExtinctRes[i]<-numExtinctRes[i]+1}
+    if(length(thres(popSizeNewRes[,i],tExt)>0)){numExtinctNewRes[i]<-numExtinctNewRes[i]+1}
   }
 }
-
 print(numExtinctCom)
 print(numExtinctRes)
 print(numExtinctNewRes)
@@ -281,5 +294,12 @@ plot.ts(asymptComTS,cex.lab=0.5)
 plot.ts(asymptResTS,cex.lab=0.5)
 plot.ts(asymptNewResTS,cex.lab=0.5)
 plot.ts(asymptSumTS,cex.lab=0.5)
+```
+
+```{r}
+#will add back later
+# popSizeCom[i,] <- replace(popSizeCom[i,], popSizeCom[i,] < tLow | popSizeCom[i,] > tHigh, 0)
+      # popSizeRes[i,] <- replace(popSizeRes[i,], popSizeRes[i,] < tLow | popSizeRes[i,] > tHigh, 0)
+      # popSizeNewRes[i,] <- replace(popSizeNewRes[i,], popSizeNewRes[i,] < tLow | popSizeNewRes[i,] > tHigh, 0)
 ```
 
