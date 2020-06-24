@@ -12,7 +12,7 @@ library(mvtnorm)
 library(ggplot2)
 ```
 
-```{r}
+```{r, functions}
 #dr. reuman's function
 newCopulaWithTailDependece<-function(n,dim,rho,thresh_lo,thresh_hi)
 {
@@ -41,7 +41,7 @@ findNormalCopulaParam <- function(numSamples,dim,varSumRetain){
 }
 ```
 
-```{r}
+```{r, copula}
 n<-10000
 dim<-10 
 rho<-0
@@ -54,19 +54,18 @@ res<-qnorm(res)
 hist(res[,1],50)
 hist(res[,2],50)
 ```
-```{r}
-covMatrix <- matrix(data=rep(0,times=dim*dim),nrow=dim,byrow=TRUE)
 
+```{r, random variables}
+
+covMatrix <- matrix(data=rep(0,times=dim*dim),nrow=dim,byrow=TRUE)
 for(i in 1:dim){
   for(j in 1:(dim)){
    covMatrix[i,j] <- cov(res[,i],res[,j])
   }
 }
-
 varSumRetain <- sum(covMatrix)
-```
 
-```{r}
+
 rho <- findNormalCopulaParam(numSamples, dim, varSumRetain)
 newNormalCop <- normalCopula(param = rho,dim =dim)
 newNormCop <- rCopula(n, newNormalCop)
@@ -86,7 +85,7 @@ hist(new_sum_res,50)
 var(new_sum_res)
 ```
 
-```{r}
+```{r, ecdfplot}
 valuesV <- append(append(sum_com, sum_res),new_sum_res)
 typeV <- rep("sum_com",n)
 typeV <- append(typeV, rep("sum_res",n))
@@ -107,114 +106,60 @@ ecdfPlot <- ecdfPlot + theme(text = element_text(size=7),
 plot(ecdfPlot)
 ```
 
-```{r, epsilon ~ environment var}
+```{r, epsilon environment var}
 set.seed(10)
 
+ricker <-function(curpop,r,k,eps){
+  return(curpop*exp(r*(1-(curpop/k))+eps))
+}
+
+thres<-function(popVec,thresExt){
+  return(popVec[popVec<thresExt])
+}
+
 r <- 1 
+numSimulations <- 1
 initPopSize <- 500 
 carryingCapacity <- 500
 timeSteps <- 20000
+tExt <- initPopSize/2 
 
-eps_res <- res[sample(nrow(res),size=timeSteps,replace=TRUE),]
-eps_com <- com_mat[sample(nrow(res),size=timeSteps,replace=TRUE),]
-eps_new_res <- newMultiNormMarg[sample(nrow(newMultiNormMarg),size=timeSteps,replace=TRUE),]
-
-ricker <-function(curPop,r,K,eps){
-  return(curPop*exp(r*(1-(curPop/K))+eps))
-}
-
-popSizeCom <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
-popSizeRes <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
-popSizeNewRes <-  matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
-
-for(i in 1:(timeSteps)){
-    popSizeCom <- rbind(popSizeCom,ricker(popSizeCom[i,],r,carryingCapacity,eps_com[i,]))
-    popSizeRes <- rbind(popSizeRes,ricker(popSizeRes[i,],r,carryingCapacity,eps_res[i,]))
-    popSizeNewRes <- rbind(popSizeNewRes,ricker(popSizeNewRes[i,],r,carryingCapacity,eps_new_res[i,]))
-}
-
-totalPopSizeCom <- rowSums(popSizeCom)
-totalPopSizeRes <- rowSums(popSizeRes)
-totalPopSizeNewRes <- rowSums(popSizeNewRes)
-plot.ts(totalPopSizeCom)
-plot.ts(totalPopSizeRes)
-plot.ts(totalPopSizeNewRes)
-
-plot.ts(totalPopSizeCom[1:500])
-plot.ts(totalPopSizeRes[1:500])
-plot.ts(totalPopSizeNewRes[1:500])
-
-hist(totalPopSizeCom,200)
-hist(totalPopSizeRes,200)
-hist(totalPopSizeNewRes,200)
-```
-```{r}
-numSimulations <- 1000
 numExtinctCom <- rep(0, times= dim)
 numExtinctRes <- rep(0, times= dim)
 numExtinctNewRes <- rep(0, times= dim)
 
-asymptPopSizeCom <- matrix(data=rep(0,times=dim*(timeSteps+1)),nrow=timeSteps+1)
-asymptPopSizeRes <- matrix(data=rep(0,times=dim*(timeSteps+1)),nrow=timeSteps+1)
-asymptPopSizeNewRes <- matrix(data=rep(0,times=dim*(timeSteps+1)),nrow=timeSteps+1)
-
-for(i in 1:numSimulations){
-  eps_res <- res[sample(nrow(res),size=timeSteps,replace=TRUE),]
-  eps_com <- com_mat[sample(nrow(res),size=timeSteps,replace=TRUE),]
-  eps_new_res <- newMultiNormMarg[sample(nrow(newMultiNormMarg),size=timeSteps,replace=TRUE),]
-
-  initPopSize <- 100
+for(j in 1:numSimulations){
+  eps_res <- res[sample(nrow(res),size=timeSteps,replace=T),] 
+  eps_com <- com_mat[sample(nrow(res),size=timeSteps,replace=T),] 
+  eps_new_res <- newMultiNormMarg[sample(nrow(newMultiNormMarg),size=timeSteps,replace=T),] 
+  
   popSizeCom <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
   popSizeRes <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
   popSizeNewRes <-  matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
-  
   
   for(i in 1:(timeSteps)){
       popSizeCom <- rbind(popSizeCom,ricker(popSizeCom[i,],r,carryingCapacity,eps_com[i,]))
       popSizeRes <- rbind(popSizeRes,ricker(popSizeRes[i,],r,carryingCapacity,eps_res[i,]))
       popSizeNewRes <- rbind(popSizeNewRes,ricker(popSizeNewRes[i,],r,carryingCapacity,eps_new_res[i,]))
-      
   }
   
-  asymptPopSizeCom <- asymptPopSizeCom + popSizeCom
-  asymptPopSizeRes  <- asymptPopSizeRes + popSizeRes
-  asymptPopSizeNewRes  <- asymptPopSizeNewRes + popSizeNewRes
-  
-  tExt <- initPopSize/2 
-  thres<-function(popVec,thresExt){
-    return(popVec[popVec<thresExt])
-  }
-  
-  for(i in 1:dim){
-    if(length(thres(popSizeCom[,i],tExt)>0)){numExtinctCom[i]<-numExtinctCom[i]+1}
-    if(length(thres(popSizeRes[,i],tExt)>0)){numExtinctRes[i]<-numExtinctRes[i]+1}
-    if(length(thres(popSizeNewRes[,i],tExt)>0)){numExtinctNewRes[i]<-numExtinctNewRes[i]+1}
+  if(j == 1){
+    totalPopSizeCom <- rowSums(popSizeCom)
+    totalPopSizeRes <- rowSums(popSizeRes)
+    totalPopSizeNewRes <- rowSums(popSizeNewRes)
+    plot.ts(totalPopSizeCom)
+    plot.ts(totalPopSizeRes)
+    plot.ts(totalPopSizeNewRes)
+    
+    plot.ts(totalPopSizeCom[1:500]) 
+    plot.ts(totalPopSizeRes[1:500])
+    plot.ts(totalPopSizeNewRes[1:500])
+    
+    hist(totalPopSizeCom,200)
+    hist(totalPopSizeRes,200)
+    hist(totalPopSizeNewRes,200)
   }
 }
-```
-
-```{r}
-# average time series plot after many iterations
-
-asymptPopSizeCom <- asymptPopSizeCom / numSimulations
-asymptPopSizeRes  <- asymptPopSizeRes / numSimulations 
-asymptPopSizeNewRes  <- asymptPopSizeNewRes /numSimulations 
-
-asymptComTS <- ts(asymptPopSizeCom,names=sprintf("asymptcom%s",seq(1:dim)))
-asymptResTS <- ts(asymptPopSizeRes,names=sprintf("asymptres%s",seq(1:dim)))
-asymptNewResTS <- ts(asymptPopSizeRes,names=sprintf("asymptnewRes%s",seq(1:dim)))
-
-asymptTotalPopSizeCom <- rowSums(asymptPopSizeCom)
-asymptTotalPopSizeRes <- rowSums(asymptPopSizeRes)
-asymptTotalPopSizeNewRes <- rowSums(asymptPopSizeNewRes)
-
-asymptSumTS <- ts( matrix(data=cbind(asymptTotalPopSizeCom,asymptTotalPopSizeRes,asymptTotalPopSizeNewRes),ncol=3),
-             names=c("asymptTotalPopSizeCom","asymptTotalPopSizeRes","asymptTotalPopSizeNewRes"))
-
-plot.ts(asymptComTS,cex.lab=0.5)
-plot.ts(asymptResTS,cex.lab=0.5)
-plot.ts(asymptNewResTS,cex.lab=0.5)
-plot.ts(asymptSumTS,cex.lab=0.5)
 ```
 
 
