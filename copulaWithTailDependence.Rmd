@@ -1,11 +1,24 @@
 ---
-title: "copulaWithTailDependence"
+title: ""
 output: html_document
+params:
+  n: 10000
+  dim: 10 
+  rho: 0.1
+  thresh_hi: 0.7
+  thresh_lo: 0.0
+  
+  r: 1 
+  numSimulations: 1
+  initPopSize: 500 
+  carryingCapacity: 500 
+  timeSteps: 20000
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = F)
 ```
+
 ```{r}
 library(copula)
 library(mvtnorm)
@@ -29,7 +42,7 @@ newCopulaWithTailDependece<-function(n,dim,rho,thresh_lo,thresh_hi)
 }
 
 
-findNormalCopulaParam <- function(numSamples,dim,varSumRetain){
+findNormalCopulaParam <- function(dim,varSumRetain){
     fOptim <-function(rho){
      #varSum is the sum of all entries in the covariance matrix 
      # and the below formula gets that sum in a closed formula way
@@ -41,41 +54,51 @@ findNormalCopulaParam <- function(numSamples,dim,varSumRetain){
 }
 ```
 
-```{r, copula}
-n<-10000
-dim<-10 
-rho<-0
-thresh_hi<- 1
-thresh_lo<- 0.3
-res<-newCopulaWithTailDependece(n,dim,rho,thresh_lo,thresh_hi)
-dim(res)
+```{r, initialparameters}
+print(paste0("params$n: ",params$n))
+print(paste0("params$dim: ",params$dim))
+print(paste0("params$rho: ",params$rho))
+print(paste0("params$thresh_hi: ",params$thresh_hi))
+print(paste0("params$thresh_lo: ",params$thresh_lo))
 
+
+print(paste0("params$r: ",params$r))
+print(paste0("params$numSimulations: ",params$numSimulations))
+print(paste0("params$initPopSize: ",params$initPopSize))
+print(paste0("params$carryingCapacity: ",params$carryingCapacity))
+print(paste0("params$timeSteps: ",params$timeSteps))
+```
+
+```{r}
+res<-newCopulaWithTailDependece(params$n,params$dim,params$rho,params$thresh_lo,params$thresh_hi)
+plot(res[,1],res[,2])
 res<-qnorm(res)
 hist(res[,1],50)
 hist(res[,2],50)
+plot(res[,1],res[,2])
 ```
 
 ```{r, random variables}
 
-covMatrix <- matrix(data=rep(0,times=dim*dim),nrow=dim,byrow=TRUE)
-for(i in 1:dim){
-  for(j in 1:(dim)){
+covMatrix <- matrix(data=rep(0,times=params$dim*params$dim),nrow=params$dim,byrow=TRUE)
+for(i in 1:params$dim){
+  for(j in 1:(params$dim)){
    covMatrix[i,j] <- cov(res[,i],res[,j])
   }
 }
 varSumRetain <- sum(covMatrix)
 
 
-rho <- findNormalCopulaParam(numSamples, dim, varSumRetain)
-newNormalCop <- normalCopula(param = rho,dim =dim)
-newNormCop <- rCopula(n, newNormalCop)
+rho <- findNormalCopulaParam(params$dim, varSumRetain)
+newNormalCop <- normalCopula(param = rho,dim =params$dim)
+newNormCop <- rCopula(params$n, newNormalCop)
 newMultiNormMarg <- qnorm(newNormCop)
-com_mat <- matrix(data=replicate(n=dim,res[,1]),ncol=dim)
+com_mat <- matrix(data=replicate(n=params$dim,res[,1]),ncol=params$dim)
 
 
 new_sum_res <- rowSums(newMultiNormMarg)
 sum_res <- rowSums(res)
-sum_com <- dim*res[,1] # or rowSums(com_mat) is equivalent
+sum_com <- params$dim*res[,1] # or rowSums(com_mat) is equivalent
 
 hist(sum_com,50)
 var(sum_com)
@@ -87,9 +110,9 @@ var(new_sum_res)
 
 ```{r, ecdfplot}
 valuesV <- append(append(sum_com, sum_res),new_sum_res)
-typeV <- rep("sum_com",n)
-typeV <- append(typeV, rep("sum_res",n))
-typeV <- append(typeV, rep("new_sum_res",n))
+typeV <- rep("sum_com",params$n)
+typeV <- append(typeV, rep("sum_res",params$n))
+typeV <- append(typeV, rep("new_sum_res",params$n))
 
 
 dataFrame <- data.frame(values = valuesV, type = typeV)
@@ -106,55 +129,52 @@ ecdfPlot <- ecdfPlot + theme(text = element_text(size=7),
 plot(ecdfPlot)
 ```
 
-```{r, epsilon environment var}
-set.seed(10)
-
+```{r, epsilon environment var, warning = FALSE}
 ricker <-function(curpop,r,k,eps){
   return(curpop*exp(r*(1-(curpop/k))+eps))
 }
 
-thres<-function(popVec,thresExt){
-  return(popVec[popVec<thresExt])
+extinct<-function(pop,tLow,tHigh){
+  if(any(pop<tLow|pop>tHigh)){return(TRUE)}
+  return(FALSE)
 }
 
-r <- 1 
-numSimulations <- 1
-initPopSize <- 500 
-carryingCapacity <- 500
-timeSteps <- 20000
-tExt <- initPopSize/2 
 
-numExtinctCom <- rep(0, times= dim)
-numExtinctRes <- rep(0, times= dim)
-numExtinctNewRes <- rep(0, times= dim)
+tLow <- params$initPopSize/2 
+tHigh <- 2*params$carryingCapacity
 
-for(j in 1:numSimulations){
-  eps_res <- res[sample(nrow(res),size=timeSteps,replace=T),] 
-  eps_com <- com_mat[sample(nrow(res),size=timeSteps,replace=T),] 
-  eps_new_res <- newMultiNormMarg[sample(nrow(newMultiNormMarg),size=timeSteps,replace=T),] 
+numExtinctCom <- 0 
+numExtinctRes <- 0 
+numExtinctNewRes <- 0 
+
+for(j in 1:params$numSimulations){
+  eps_res <- res[sample(nrow(res),size=params$timeSteps,replace=T),] 
+  eps_com <- com_mat[sample(nrow(res),size=params$timeSteps,replace=T),] 
+  eps_new_res <- newMultiNormMarg[sample(nrow(newMultiNormMarg),size=params$timeSteps,replace=T),] 
   
-  popSizeCom <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
-  popSizeRes <- matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
-  popSizeNewRes <-  matrix(data=rep(initPopSize,times=dim),nrow=1,byrow = T)
+  popSizeCom <- matrix(data=rep(params$initPopSize,times=params$dim),nrow=1,byrow = T)
+  popSizeRes <- matrix(data=rep(params$initPopSize,times=params$dim),nrow=1,byrow = T)
+  popSizeNewRes <-  matrix(data=rep(params$initPopSize,times=params$dim),nrow=1,byrow = T)
   
-  for(i in 1:(timeSteps)){
-      popSizeCom <- rbind(popSizeCom,ricker(popSizeCom[i,],r,carryingCapacity,eps_com[i,]))
-      popSizeRes <- rbind(popSizeRes,ricker(popSizeRes[i,],r,carryingCapacity,eps_res[i,]))
-      popSizeNewRes <- rbind(popSizeNewRes,ricker(popSizeNewRes[i,],r,carryingCapacity,eps_new_res[i,]))
+  for(i in 1:(params$timeSteps)){
+      popSizeCom <- rbind(popSizeCom,ricker(popSizeCom[i,],params$r,params$carryingCapacity,eps_com[i,]))
+      popSizeRes <- rbind(popSizeRes,ricker(popSizeRes[i,],params$r,params$carryingCapacity,eps_res[i,]))
+      popSizeNewRes <- rbind(popSizeNewRes,ricker(popSizeNewRes[i,],params$r,params$carryingCapacity,eps_new_res[i,]))
   }
   
+  totalPopSizeCom <- rowSums(popSizeCom)
+  totalPopSizeRes <- rowSums(popSizeRes)
+  totalPopSizeNewRes <- rowSums(popSizeNewRes)
+  
+  if(extinct(totalPopSizeCom,tLow,tHigh)){numExtinctCom<-numExtinctCom+1}
+  if(extinct(totalPopSizeRes,tLow,tHigh)){numExtinctRes<-numExtinctRes+1}
+  if(extinct(totalPopSizeNewRes,tLow,tHigh)){numExtinctNewRes<-numExtinctNewRes+1}
+   
   if(j == 1){
-    totalPopSizeCom <- rowSums(popSizeCom)
-    totalPopSizeRes <- rowSums(popSizeRes)
-    totalPopSizeNewRes <- rowSums(popSizeNewRes)
     plot.ts(totalPopSizeCom)
     plot.ts(totalPopSizeRes)
     plot.ts(totalPopSizeNewRes)
-    
-    plot.ts(totalPopSizeCom[1:500]) 
-    plot.ts(totalPopSizeRes[1:500])
-    plot.ts(totalPopSizeNewRes[1:500])
-    
+
     hist(totalPopSizeCom,200)
     hist(totalPopSizeRes,200)
     hist(totalPopSizeNewRes,200)
