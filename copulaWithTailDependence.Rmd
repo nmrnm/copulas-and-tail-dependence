@@ -1,5 +1,5 @@
 ---
-title: ""
+title: "population simulation"
 output: html_document
 params:
   n: 10000
@@ -53,21 +53,18 @@ findNormalCopulaParam <- function(dim,varSumRetain){
     return(optimize(fOptim,c(0,1),lower=0,upper=1,maximum=FALSE)$minimum)
 }
 ```
+## initial parameter values
+params\$n: `r params$n`<br />
+params\$dim: `r params$dim`<br />
+params\$rho: `r params$rho`<br />
+params\$thresh_hi: `r params$thresh_hi`<br />
+params\$thresh_lo: `r params$thresh_lo`<br />
 
-```{r, initialparameters}
-print(paste0("params$n: ",params$n))
-print(paste0("params$dim: ",params$dim))
-print(paste0("params$rho: ",params$rho))
-print(paste0("params$thresh_hi: ",params$thresh_hi))
-print(paste0("params$thresh_lo: ",params$thresh_lo))
-
-
-print(paste0("params$r: ",params$r))
-print(paste0("params$numSimulations: ",params$numSimulations))
-print(paste0("params$initPopSize: ",params$initPopSize))
-print(paste0("params$carryingCapacity: ",params$carryingCapacity))
-print(paste0("params$timeSteps: ",params$timeSteps))
-```
+params\$r: `r params$r`<br />
+params\$numSimulations: `r params$numSimulations`<br />
+params\$initPopSize: `r params$initPopSize`<br />
+params\$carryingCapacity: `r params$carryingCapacity`<br />
+params\$timeSteps: `r params$timeSteps`<br />
 
 ```{r}
 res<-newCopulaWithTailDependece(params$n,params$dim,params$rho,params$thresh_lo,params$thresh_hi)
