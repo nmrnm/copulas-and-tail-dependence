@@ -12,7 +12,7 @@ params:
   numSimulations: 1
   initPopSize: 500 
   carryingCapacity: 500 
-  timeSteps: 20000
+  timeSteps: 20000 
 ---
 
 ```{r setup, include=FALSE}
@@ -72,7 +72,6 @@ plot(res[,1],res[,2])
 res<-qnorm(res)
 hist(res[,1],50)
 hist(res[,2],50)
-plot(res[,1],res[,2])
 ```
 
 ```{r, random variables}
@@ -166,15 +165,18 @@ for(j in 1:params$numSimulations){
   if(extinct(totalPopSizeCom,tLow,tHigh)){numExtinctCom<-numExtinctCom+1}
   if(extinct(totalPopSizeRes,tLow,tHigh)){numExtinctRes<-numExtinctRes+1}
   if(extinct(totalPopSizeNewRes,tLow,tHigh)){numExtinctNewRes<-numExtinctNewRes+1}
-   
+
   if(j == 1){
     plot.ts(totalPopSizeCom)
     plot.ts(totalPopSizeRes)
     plot.ts(totalPopSizeNewRes)
 
     hist(totalPopSizeCom,200)
+    print(paste0("mean: ", mean(totalPopSizeCom)," median: ", median(totalPopSizeCom)))
     hist(totalPopSizeRes,200)
+    print(paste0("mean: ", mean(totalPopSizeRes)," median: ", median(totalPopSizeRes)))
     hist(totalPopSizeNewRes,200)
+    print(paste0("mean: ", mean(totalPopSizeNewRes)," median: ", median(totalPopSizeNewRes)))
   }
 }
 ```
