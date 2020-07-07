@@ -1,6 +1,10 @@
 ---
-title: "population simulation"
-output: html_document
+title: "Population Simulation"
+output: 
+  html_document:
+      theme: united
+      css: style.css
+      fig_caption: true
 params:
   n: 10000
   dim: 10 
@@ -12,17 +16,22 @@ params:
   numSimulations: 1
   initPopSize: 500 
   carryingCapacity: 500 
-  timeSteps: 20000 
+  timeSteps: 200 
+  
+  filename: "testtext"
+  fileext: ".txt"
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F)
+knitr::opts_chunk$set(echo = F, cache = F, fig.align = 'center')
 ```
 
-```{r}
+```{r, message = F}
 library(copula)
 library(mvtnorm)
 library(ggplot2)
+library(tseries)
+library(forecast)
 ```
 
 ```{r, functions}
@@ -53,20 +62,29 @@ findNormalCopulaParam <- function(dim,varSumRetain){
     return(optimize(fOptim,c(0,1),lower=0,upper=1,maximum=FALSE)$minimum)
 }
 ```
-## initial parameter values
-params\$n: `r params$n`<br />
-params\$dim: `r params$dim`<br />
-params\$rho: `r params$rho`<br />
-params\$thresh_hi: `r params$thresh_hi`<br />
-params\$thresh_lo: `r params$thresh_lo`<br />
+# Initial Values
+These are the parameters to construct our copula with tail dependence for which we obtain our environmental noise.
 
-params\$r: `r params$r`<br />
-params\$numSimulations: `r params$numSimulations`<br />
-params\$initPopSize: `r params$initPopSize`<br />
-params\$carryingCapacity: `r params$carryingCapacity`<br />
-params\$timeSteps: `r params$timeSteps`<br />
+<b>n:</b> `r params$n`<br />
+<b>dim:</b> `r params$dim`<br />
+<b>rho:</b> `r params$rho`<br />
+<b>thresh_hi:</b> `r params$thresh_hi`<br />
+<b>thresh_lo:</b> `r params$thresh_lo`<br />
 
-```{r}
+These are the values that we have when we simulate our population throughout time.
+
+<b>r:</b> `r params$r`<br />
+<b>numSimulations:</b> `r params$numSimulations`<br />
+<b>initPopSize:</b> `r params$initPopSize`<br />
+<b>carryingCapacity:</b> `r params$carryingCapacity`<br />
+<b>timeSteps:</b> `r params$timeSteps`<br />
+
+This is where we obtain additional information we want to include in our document
+
+<b>filename:</b> `r params$filename` <br />
+<b>fileext:</b> `r params$fileext` <br />
+
+```{r, fig.align='center'}
 res<-newCopulaWithTailDependece(params$n,params$dim,params$rho,params$thresh_lo,params$thresh_hi)
 plot(res[,1],res[,2])
 res<-qnorm(res)
@@ -74,6 +92,8 @@ hist(res[,1],50)
 hist(res[,2],50)
 ```
 
+`r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1)`
+`r lines`
 ```{r, random variables}
 
 covMatrix <- matrix(data=rep(0,times=params$dim*params$dim),nrow=params$dim,byrow=TRUE)
@@ -104,6 +124,8 @@ hist(new_sum_res,50)
 var(new_sum_res)
 ```
 
+`r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1)`
+`r lines`
 ```{r, ecdfplot}
 valuesV <- append(append(sum_com, sum_res),new_sum_res)
 typeV <- rep("sum_com",params$n)
@@ -125,7 +147,9 @@ ecdfPlot <- ecdfPlot + theme(text = element_text(size=7),
 plot(ecdfPlot)
 ```
 
-```{r, epsilon environment var, warning = FALSE}
+`r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1)`
+`r lines`
+```{r, epsilon environment var, eval = T,  warning = FALSE}
 ricker <-function(curpop,r,k,eps){
   return(curpop*exp(r*(1-(curpop/k))+eps))
 }
@@ -158,27 +182,52 @@ for(j in 1:params$numSimulations){
       popSizeNewRes <- rbind(popSizeNewRes,ricker(popSizeNewRes[i,],params$r,params$carryingCapacity,eps_new_res[i,]))
   }
   
-  totalPopSizeCom <- rowSums(popSizeCom)
-  totalPopSizeRes <- rowSums(popSizeRes)
-  totalPopSizeNewRes <- rowSums(popSizeNewRes)
+  totalPopSizeCom <- rowSums(popSizeCom)/params$dim
+  totalPopSizeRes <- rowSums(popSizeRes)/params$dim
+  totalPopSizeNewRes <- rowSums(popSizeNewRes)/params$dim
   
   if(extinct(totalPopSizeCom,tLow,tHigh)){numExtinctCom<-numExtinctCom+1}
   if(extinct(totalPopSizeRes,tLow,tHigh)){numExtinctRes<-numExtinctRes+1}
   if(extinct(totalPopSizeNewRes,tLow,tHigh)){numExtinctNewRes<-numExtinctNewRes+1}
 
   if(j == 1){
-    plot.ts(totalPopSizeCom)
-    plot.ts(totalPopSizeRes)
-    plot.ts(totalPopSizeNewRes)
-
-    hist(totalPopSizeCom,200)
-    print(paste0("mean: ", mean(totalPopSizeCom)," median: ", median(totalPopSizeCom)))
-    hist(totalPopSizeRes,200)
-    print(paste0("mean: ", mean(totalPopSizeRes)," median: ", median(totalPopSizeRes)))
-    hist(totalPopSizeNewRes,200)
-    print(paste0("mean: ", mean(totalPopSizeNewRes)," median: ", median(totalPopSizeNewRes)))
+    m = max(totalPopSizeCom,totalPopSizeRes,totalPopSizeNewRes) + 1000
+    plot.ts(totalPopSizeCom,ylim=c(0,m))
+    plot.ts(totalPopSizeRes,ylim=c(0,m))
+    plot.ts(totalPopSizeNewRes,ylim=c(0,m))
+    
   }
 }
+```
+
+`r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1)`
+`r lines`
+```{r}
+mean(eps_com)
+mean(eps_res)
+mean(eps_new_res)
+hist(totalPopSizeCom,200)
+print(paste0("mean: ", mean(totalPopSizeCom)," median: ", median(totalPopSizeCom)))
+hist(totalPopSizeRes,200)
+print(paste0("mean: ", mean(totalPopSizeRes)," median: ", median(totalPopSizeRes)))
+hist(totalPopSizeNewRes,200)
+print(paste0("mean: ", mean(totalPopSizeNewRes)," median: ", median(totalPopSizeNewRes)))
+```
+
+`r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1)`
+`r lines`
+```{r}
+pacf(totalPopSizeCom)
+pacf(totalPopSizeRes)
+pacf(totalPopSizeNewRes)
+```
+
+`r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1)`
+`r lines`
+```{r}
+acf(totalPopSizeCom)
+acf(totalPopSizeRes)
+acf(totalPopSizeNewRes)
 ```
 
 

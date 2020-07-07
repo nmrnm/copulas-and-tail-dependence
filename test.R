@@ -41,7 +41,7 @@ df <- as.data.frame(matrix(data=c(li1,li2,li3),ncol=3,dimnames = list(nm, NULL))
 for(i in 1:ncol(df)){
   rmarkdown::render('copulaWithTailDependence.Rmd', params = df[,i],
                      output_file = paste0(paste0(paste0(names(df[,i]),'='),df[,i],collapse='|'),".html"), 
-                     output_dir = paste0(getwd(),"/html/"))
+                     output_dir = paste0(getwd(),"/testhtml/"))
 }
   
   
