@@ -4,29 +4,63 @@ output:
   html_document:
       theme: united
       css: style.css
-      fig_caption: true
 params:
   n: 10000
   dim: 10 
   rho: 0.1
-  thresh_hi: 0.7
-  thresh_lo: 0.0
-  
+  thresh_hi: 1.0
+  thresh_lo: 0.4
+  eps_sd: 1.0
+    
   r: 1 
-  numSimulations: 1
   initPopSize: 500 
   carryingCapacity: 500 
-  timeSteps: 200 
+  timeSteps: 10000 
+  
+  setseed: FALSE
+  seed: 10
   
   filename: "testtext"
   fileext: ".txt"
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F, cache = F, fig.align = 'center')
+knitr::opts_chunk$set(echo = T, cache = F, fig.align = 'center')
+if(params$setseed){
+  set.seed(params$seed)
+}
 ```
 
-```{r, message = F}
+# Initial Values
+These are the parameters to construct our copula with tail dependence for which we obtain our environmental noise.
+
+* <b>n:</b> `r params$n`<br />
+* <b>dim:</b> `r params$dim`<br />
+* <b>rho:</b> `r params$rho`<br />
+* <b>thresh_hi:</b> `r params$thresh_hi`<br />
+* <b>thresh_lo:</b> `r params$thresh_lo`<br />
+* <b>eps_sd:</b> `r params$eps_sd`<br />
+
+These are the values that we have when we simulate our population throughout time.
+
+* <b>r:</b> `r params$r`<br />
+* <b>numSimulations:</b> `r params$numSimulations`<br />
+* <b>initPopSize:</b> `r params$initPopSize`<br />
+* <b>carryingCapacity:</b> `r params$carryingCapacity`<br />
+* <b>timeSteps:</b> `r params$timeSteps`<br />
+
+This is if we set a seed for our program.
+
+* <b>setseed:</b> `r params$setseed`
+* <b>seed:</b> `r params$seed`
+
+This is where we obtain additional information we want to include in our document.
+
+* <b>filename:</b> `r params$filename` <br />
+* <b>fileext:</b> `r params$fileext` <br />
+
+
+```{r, message = F,echo=F}
 library(copula)
 library(mvtnorm)
 library(ggplot2)
@@ -34,7 +68,7 @@ library(tseries)
 library(forecast)
 ```
 
-```{r, functions}
+```{r, functions,echo=F}
 #dr. reuman's function
 newCopulaWithTailDependece<-function(n,dim,rho,thresh_lo,thresh_hi)
 {
@@ -62,39 +96,38 @@ findNormalCopulaParam <- function(dim,varSumRetain){
     return(optimize(fOptim,c(0,1),lower=0,upper=1,maximum=FALSE)$minimum)
 }
 ```
-# Initial Values
-These are the parameters to construct our copula with tail dependence for which we obtain our environmental noise.
 
-<b>n:</b> `r params$n`<br />
-<b>dim:</b> `r params$dim`<br />
-<b>rho:</b> `r params$rho`<br />
-<b>thresh_hi:</b> `r params$thresh_hi`<br />
-<b>thresh_lo:</b> `r params$thresh_lo`<br />
-
-These are the values that we have when we simulate our population throughout time.
-
-<b>r:</b> `r params$r`<br />
-<b>numSimulations:</b> `r params$numSimulations`<br />
-<b>initPopSize:</b> `r params$initPopSize`<br />
-<b>carryingCapacity:</b> `r params$carryingCapacity`<br />
-<b>timeSteps:</b> `r params$timeSteps`<br />
-
-This is where we obtain additional information we want to include in our document
-
-<b>filename:</b> `r params$filename` <br />
-<b>fileext:</b> `r params$fileext` <br />
-
-```{r, fig.align='center'}
-res<-newCopulaWithTailDependece(params$n,params$dim,params$rho,params$thresh_lo,params$thresh_hi)
-plot(res[,1],res[,2])
-res<-qnorm(res)
-hist(res[,1],50)
-hist(res[,2],50)
+# Construction of a Tail Dependent Random Variable
+Here we construct our copula with tail dependence with the newCopulaWithTailDependence function.
+```{r}
+upperCop<-newCopulaWithTailDependece(params$n,params$dim,params$rho,params$thresh_lo,params$thresh_hi)
+lowerCop<-newCopulaWithTailDependece(params$n,params$dim,params$rho,params$thresh_lo,params$thresh_hi)
+bothCop<-newCopulaWithTailDependece(params$n,params$dim,params$rho,params$thresh_lo,params$thresh_hi)
 ```
 
-`r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1)`
+```{r,echo=F} 
+#if(params$thresh_lo == 0 && params$thresh_hi == 1){ tailDep <- "no tail dependence"}else if(params$thresh_lo==0){tailDep <- "right tail dependence"}else if(params$thresh_hi ==1){tailDep<-"left tail dependence"}else{tailDep<-"tail dependence in both tails"}
+```
+The parameters that we pass into the function indicate that:
+
+* we sample from `r params$n` points from a copula 
+* our copula has dimension `r params$dim` 
+* we use the value of `r params$rho` for rho where rho is the normal copula parameter for the region of the copula that is not tail dependent.
+* we have the values of `r params$thresh_lo` for thresh_lo and `r params$thresh_hi` for thresh_hi.
+
+
+# Transformation of our Random Variable and Construction of New Random Variables
+We now transforms all of our marginals of our `r params$dim`-dimensional copula with into normal marginals.
+```{r}
+upperCop<-qnorm(upperCop,sd=params$eps_sd)
+lowerCop<-qnorm(lowerCop,sd=params$eps_sd)
+bothCop<-qnorm(bothCop,sd=params$eps_sd)
+```
+
+`r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1);close(con)`
 `r lines`
-```{r, random variables}
+We now calculate the covariance matrix for `r params$dim`-variate normal random variable.
+```{r}
 
 covMatrix <- matrix(data=rep(0,times=params$dim*params$dim),nrow=params$dim,byrow=TRUE)
 for(i in 1:params$dim){
@@ -102,31 +135,55 @@ for(i in 1:params$dim){
    covMatrix[i,j] <- cov(res[,i],res[,j])
   }
 }
+```
+We sum all of the entries of our covariance matrix to obtain the variance of the sum of all
+random variable to have
+```{r}
 varSumRetain <- sum(covMatrix)
-
-
+```
+We use this variance to find the rho parameter to construct a `r params$dim`-variate normal copula that has the same value for the  variance of the sum of the marginals as our tail dependent random variable
+```{r}
 rho <- findNormalCopulaParam(params$dim, varSumRetain)
 newNormalCop <- normalCopula(param = rho,dim =params$dim)
 newNormCop <- rCopula(params$n, newNormalCop)
+```
+We new transform this normal copula into normal marginals.
+```{r}
 newMultiNormMarg <- qnorm(newNormCop)
+```
+We now create our comonotonic random variable with dimension `r params$dim`
+```{r}
 com_mat <- matrix(data=replicate(n=params$dim,res[,1]),ncol=params$dim)
+```
 
-
+```{r,echo=F}
 new_sum_res <- rowSums(newMultiNormMarg)
 sum_res <- rowSums(res)
 sum_com <- params$dim*res[,1] # or rowSums(com_mat) is equivalent
-
-hist(sum_com,50)
-var(sum_com)
-hist(sum_res,50)
-var(sum_res)
-hist(new_sum_res,50)
-var(new_sum_res)
 ```
 
-`r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1)`
+`r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1);close(con)`
 `r lines`
-```{r, ecdfplot}
+This is the empirical cumulative density function of three random
+variables. These three random variables are the sum of the
+`r params$dim` marginals of each the three cases. The variance of the sum of these
+random variables respectively are:
+
+* <b>comonotonic:</b> `r var(sum_com)`
+* <b>comonotonic</b> in the tail: `r var(sum_res)`
+* <b>not comonotonic:</b> `r var(new_sum_res)`
+
+The following is the variance of the first marginal of each of the cases:
+
+* <b>comonotonic:</b> `r var(com_mat[,1])`
+* <b>comonotonic</b> in the tail: `r var(res[,1])`
+* <b>not comonotonic:</b> `r var(new_res[,1])`
+
+Note that the variance for the comonotonic in the tail case and not
+comonotonic are similar. Also note that the variance for the comonotonic case is greater than the other two cases.
+
+This is the ecdfplot of the sum of the marginals of each of the three random variables.
+```{r, ecdfplot,echo=F}
 valuesV <- append(append(sum_com, sum_res),new_sum_res)
 typeV <- rep("sum_com",params$n)
 typeV <- append(typeV, rep("sum_res",params$n))
@@ -147,18 +204,22 @@ ecdfPlot <- ecdfPlot + theme(text = element_text(size=7),
 plot(ecdfPlot)
 ```
 
-`r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1)`
+`r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1);close(con)`
 `r lines`
-```{r, epsilon environment var, eval = T,  warning = FALSE}
+We have three random variables where each of them have `r params$dim` marginals. Each of these random variables
+represents the environmental noise on a population each with `r params$dim` metapopulations. We use a stochastic 
+ricker model to model how the population fluctuates over time
+```{r}
 ricker <-function(curpop,r,k,eps){
   return(curpop*exp(r*(1-(curpop/k))+eps))
 }
+```
 
+```{r,echo =F}
 extinct<-function(pop,tLow,tHigh){
   if(any(pop<tLow|pop>tHigh)){return(TRUE)}
   return(FALSE)
 }
-
 
 tLow <- params$initPopSize/2 
 tHigh <- 2*params$carryingCapacity
@@ -166,68 +227,83 @@ tHigh <- 2*params$carryingCapacity
 numExtinctCom <- 0 
 numExtinctRes <- 0 
 numExtinctNewRes <- 0 
+```
 
+```{r, epsilon environment var, eval = T,echo=F}
 for(j in 1:params$numSimulations){
   eps_res <- res[sample(nrow(res),size=params$timeSteps,replace=T),] 
-  eps_com <- com_mat[sample(nrow(res),size=params$timeSteps,replace=T),] 
+  eps_com <- com_mat[sample(nrow(com_mat),size=params$timeSteps,replace=T),] 
   eps_new_res <- newMultiNormMarg[sample(nrow(newMultiNormMarg),size=params$timeSteps,replace=T),] 
   
   popSizeCom <- matrix(data=rep(params$initPopSize,times=params$dim),nrow=1,byrow = T)
   popSizeRes <- matrix(data=rep(params$initPopSize,times=params$dim),nrow=1,byrow = T)
   popSizeNewRes <-  matrix(data=rep(params$initPopSize,times=params$dim),nrow=1,byrow = T)
+  # aPopSizeCom <- params$initPopSize
+  # aPopSizeRes <- params$initPopSize
+  # aPopSizeNewRes <- params$initPopSize
   
   for(i in 1:(params$timeSteps)){
       popSizeCom <- rbind(popSizeCom,ricker(popSizeCom[i,],params$r,params$carryingCapacity,eps_com[i,]))
       popSizeRes <- rbind(popSizeRes,ricker(popSizeRes[i,],params$r,params$carryingCapacity,eps_res[i,]))
       popSizeNewRes <- rbind(popSizeNewRes,ricker(popSizeNewRes[i,],params$r,params$carryingCapacity,eps_new_res[i,]))
+      # aPopSizeCom <- append(aPopSizeCom,ricker(aPopSizeCom[i],params$r,params$carryingCapacity,sum(eps_com[i,])/params$dim ))
+      # aPopSizeRes <- append(aPopSizeRes,ricker(aPopSizeRes[i],params$r,params$carryingCapacity,sum(eps_res[i,])/params$dim ))
+      # aPopSizeNewRes <- append(aPopSizeNewRes,ricker(aPopSizeNewRes[i],params$r,params$carryingCapacity,sum(eps_new_res[i,])/params$dim ))
   }
   
-  totalPopSizeCom <- rowSums(popSizeCom)/params$dim
-  totalPopSizeRes <- rowSums(popSizeRes)/params$dim
-  totalPopSizeNewRes <- rowSums(popSizeNewRes)/params$dim
+  avgPopSizeCom <- rowSums(popSizeCom)/params$dim
+  avgPopSizeRes <- rowSums(popSizeRes)/params$dim
+  avgPopSizeNewRes <- rowSums(popSizeNewRes)/params$dim
   
-  if(extinct(totalPopSizeCom,tLow,tHigh)){numExtinctCom<-numExtinctCom+1}
-  if(extinct(totalPopSizeRes,tLow,tHigh)){numExtinctRes<-numExtinctRes+1}
-  if(extinct(totalPopSizeNewRes,tLow,tHigh)){numExtinctNewRes<-numExtinctNewRes+1}
+  if(extinct(avgPopSizeCom,tLow,tHigh)){numExtinctCom<-numExtinctCom+1}
+  if(extinct(avgPopSizeRes,tLow,tHigh)){numExtinctRes<-numExtinctRes+1}
+  if(extinct(avgPopSizeNewRes,tLow,tHigh)){numExtinctNewRes<-numExtinctNewRes+1}
 
   if(j == 1){
-    m = max(totalPopSizeCom,totalPopSizeRes,totalPopSizeNewRes) + 1000
-    plot.ts(totalPopSizeCom,ylim=c(0,m))
-    plot.ts(totalPopSizeRes,ylim=c(0,m))
-    plot.ts(totalPopSizeNewRes,ylim=c(0,m))
+    maxval = max(avgPopSizeCom,avgPopSizeRes,avgPopSizeNewRes) + 1000
+    plot.ts(avgPopSizeCom,ylim=c(0,maxval))
+    plot.ts(avgPopSizeRes,ylim=c(0,maxval))
+    plot.ts(avgPopSizeNewRes,ylim=c(0,maxval))
+    plot.ts(log10(avgPopSizeCom))
+    plot.ts(log10(avgPopSizeRes))
+    plot.ts(log10(avgPopSizeNewRes))
+    
+    if(params$dim >= 10){
+      plot.ts(popSizeCom[,1:10])
+      plot.ts(popSizeRes[,1:10])
+      plot.ts(popSizeNewRes[,1:10])
+      
+    }
+    
     
   }
 }
 ```
 
-`r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1)`
+`r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1);close(con)`
 `r lines`
-```{r}
-mean(eps_com)
-mean(eps_res)
-mean(eps_new_res)
-hist(totalPopSizeCom,200)
-print(paste0("mean: ", mean(totalPopSizeCom)," median: ", median(totalPopSizeCom)))
-hist(totalPopSizeRes,200)
-print(paste0("mean: ", mean(totalPopSizeRes)," median: ", median(totalPopSizeRes)))
-hist(totalPopSizeNewRes,200)
-print(paste0("mean: ", mean(totalPopSizeNewRes)," median: ", median(totalPopSizeNewRes)))
-```
 
-`r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1)`
-`r lines`
-```{r}
-pacf(totalPopSizeCom)
-pacf(totalPopSizeRes)
-pacf(totalPopSizeNewRes)
-```
 
-`r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1)`
-`r lines`
 ```{r}
-acf(totalPopSizeCom)
-acf(totalPopSizeRes)
-acf(totalPopSizeNewRes)
-```
+upB <- max(quantile(avgPopSizeCom,0.98),quantile(avgPopSizeRes,0.98),quantile(avgPopSizeNewRes,0.98))
 
+com <- data.frame(population =avgPopSizeCom[avgPopSizeCom<upB] )
+res <- data.frame(population =avgPopSizeRes[avgPopSizeRes<upB] )
+newRes <- data.frame(population =avgPopSizeNewRes[avgPopSizeNewRes<upB] )
+com$type <- "com"
+res$type <- "res"
+newRes$type <- "newRes"
+
+popfreq <- rbind(com,res,newRes)
+
+ggplot(popfreq,aes(population,fill=type)) + geom_histogram(bins=200, alpha =0.6, position ='identity')
+
+hist(avgPopSizeCom[avgPopSizeCom<upB],breaks=200)
+print(paste0("mean: ", mean(avgPopSizeCom)," median: ", median(avgPopSizeCom)))
+hist(avgPopSizeRes[avgPopSizeRes<upB],breaks=200)
+print(paste0("mean: ", mean(avgPopSizeRes)," median: ", median(avgPopSizeRes)))
+hist(avgPopSizeNewRes[avgPopSizeNewRes<upB],breaks=200)
+print(paste0("mean: ", mean(avgPopSizeNewRes)," median: ", median(avgPopSizeNewRes)))
+
+```
 
