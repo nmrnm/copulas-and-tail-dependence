@@ -8,9 +8,8 @@ params:
   n: 10000
   dim: 10 
   rho: 0.1
-  thresh_hi: 1.0
-  thresh_lo: 0.4
-  eps_sd: 1.0
+  thresh: 0.2
+  eps_sd: 0.1
     
   r: 1 
   initPopSize: 500 
@@ -37,8 +36,7 @@ These are the parameters to construct our copula with tail dependence for which 
 * <b>n:</b> `r params$n`<br />
 * <b>dim:</b> `r params$dim`<br />
 * <b>rho:</b> `r params$rho`<br />
-* <b>thresh_hi:</b> `r params$thresh_hi`<br />
-* <b>thresh_lo:</b> `r params$thresh_lo`<br />
+* <b>thresh:</b> `r params$thresh`<br />
 * <b>eps_sd:</b> `r params$eps_sd`<br />
 
 These are the values that we have when we simulate our population throughout time.
@@ -70,12 +68,9 @@ library(forecast)
 
 ```{r, functions,echo=F}
 #dr. reuman's function
-newCopulaWithTailDependece<-function(n,dim,rho,thresh_lo,thresh_hi)
+newCopulaWithTailDependece<-function(res,n,dim,rho,thresh_lo,thresh_hi)
 {
   U<-runif(n)
-  ncop<-normalCopula(rho,dim=dim) #this is the copula of a multivariate normal with covariance matrix having 1s on
-  #the diagonal and all rhos in all off-diagonal positions
-  res<-rCopula(n,ncop)
   res<-(thresh_hi-thresh_lo)*res+thresh_lo
   res[U>thresh_hi,]<-rep(U[U>thresh_hi],times=dim) #this line takes the rows of res for which the corresponding
   #entry of U is bigger than thresh_hi and replaces both entries of those rows by the corresponding value of U
@@ -84,7 +79,7 @@ newCopulaWithTailDependece<-function(n,dim,rho,thresh_lo,thresh_hi)
   return(res)
 }
 
-
+# function isn't really needed, can avoid using it
 findNormalCopulaParam <- function(dim,varSumRetain){
     fOptim <-function(rho){
      #varSum is the sum of all entries in the covariance matrix 
@@ -100,14 +95,13 @@ findNormalCopulaParam <- function(dim,varSumRetain){
 # Construction of a Tail Dependent Random Variable
 Here we construct our copula with tail dependence with the newCopulaWithTailDependence function.
 ```{r}
-upperCop<-newCopulaWithTailDependece(params$n,params$dim,params$rho,params$thresh_lo,params$thresh_hi)
-lowerCop<-newCopulaWithTailDependece(params$n,params$dim,params$rho,params$thresh_lo,params$thresh_hi)
-bothCop<-newCopulaWithTailDependece(params$n,params$dim,params$rho,params$thresh_lo,params$thresh_hi)
+ncop<-normalCopula(rho,dim=dim)
+res<-rCopula(params$n,ncop)
+upper<-newCopulaWithTailDependece(res,params$n,params$dim,params$rho,0,1-params$thresh)
+lower<-newCopulaWithTailDependece(res,params$n,params$dim,params$rho,params$thresh,1)
+both<-newCopulaWithTailDependece(res,params$n,params$dim,params$rho,params$thresh/2,1-(params$thresh/2))
 ```
 
-```{r,echo=F} 
-#if(params$thresh_lo == 0 && params$thresh_hi == 1){ tailDep <- "no tail dependence"}else if(params$thresh_lo==0){tailDep <- "right tail dependence"}else if(params$thresh_hi ==1){tailDep<-"left tail dependence"}else{tailDep<-"tail dependence in both tails"}
-```
 The parameters that we pass into the function indicate that:
 
 * we sample from `r params$n` points from a copula 
@@ -119,75 +113,68 @@ The parameters that we pass into the function indicate that:
 # Transformation of our Random Variable and Construction of New Random Variables
 We now transforms all of our marginals of our `r params$dim`-dimensional copula with into normal marginals.
 ```{r}
-upperCop<-qnorm(upperCop,sd=params$eps_sd)
-lowerCop<-qnorm(lowerCop,sd=params$eps_sd)
-bothCop<-qnorm(bothCop,sd=params$eps_sd)
+upper<-qnorm(upper,sd=params$eps_sd)
+lower<-qnorm(lower,sd=params$eps_sd)
+both<-qnorm(both,sd=params$eps_sd)
 ```
 
 `r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1);close(con)`
-`r lines`
-We now calculate the covariance matrix for `r params$dim`-variate normal random variable.
+<!-- `r lines` -->
+We now find the rho parameter to construct a `r params$dim`-variate normal copula that has the same value for the  variance of the sum of the marginals as our tail dependent random variable
 ```{r}
-
-covMatrix <- matrix(data=rep(0,times=params$dim*params$dim),nrow=params$dim,byrow=TRUE)
-for(i in 1:params$dim){
-  for(j in 1:(params$dim)){
-   covMatrix[i,j] <- cov(res[,i],res[,j])
-  }
-}
-```
-We sum all of the entries of our covariance matrix to obtain the variance of the sum of all
-random variable to have
-```{r}
-varSumRetain <- sum(covMatrix)
-```
-We use this variance to find the rho parameter to construct a `r params$dim`-variate normal copula that has the same value for the  variance of the sum of the marginals as our tail dependent random variable
-```{r}
+#arbitrarily chose upper, it makes no difference
+varSumRetain <- sum(cov(upper))
 rho <- findNormalCopulaParam(params$dim, varSumRetain)
 newNormalCop <- normalCopula(param = rho,dim =params$dim)
 newNormCop <- rCopula(params$n, newNormalCop)
 ```
 We new transform this normal copula into normal marginals.
 ```{r}
-newMultiNormMarg <- qnorm(newNormCop)
+multiNorm <- qnorm(newNormCop,sd=params$eps_sd)
 ```
 We now create our comonotonic random variable with dimension `r params$dim`
 ```{r}
-com_mat <- matrix(data=replicate(n=params$dim,res[,1]),ncol=params$dim)
+temp <- rnorm(params$n, sd=params$eps_sd)
+com <- matrix(data=replicate(n=params$dim,temp),ncol=params$dim)
 ```
 
 ```{r,echo=F}
-new_sum_res <- rowSums(newMultiNormMarg)
-sum_res <- rowSums(res)
-sum_com <- params$dim*res[,1] # or rowSums(com_mat) is equivalent
+sum_norm <- rowSums(multiNorm)
+sum_upper <- rowSums(upper)
+sum_lower <- rowSums(lower)
+sum_both <- rowSums(both)
+sum_com <-rowSums(com)
 ```
 
 `r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1);close(con)`
 `r lines`
 This is the empirical cumulative density function of three random
-variables. These three random variables are the sum of the
+variables along with the cases of comonotonic and not comonotonic. These three random variables are the sum of the
 `r params$dim` marginals of each the three cases. The variance of the sum of these
 random variables respectively are:
 
-* <b>comonotonic:</b> `r var(sum_com)`
-* <b>comonotonic</b> in the tail: `r var(sum_res)`
-* <b>not comonotonic:</b> `r var(new_sum_res)`
+* <b>comonotonic:</b> `r sum(cov(com))` `r var(sum_com)` 
+* <b>comonotonic</b> in the upper tail: `r sum(cov(upper))` `r var(sum_upper)` 
+* <b>comonotonic</b> in the lower tail: `r sum(cov(lower))` `r var(sum_lower)`
+* <b>comonotonic</b> in the both tails: `r sum(cov(both))` `r var(sum_both)`
+* <b>not comonotonic:</b> `r sum(cov(multiNorm))` `r var(sum_norm)`
 
 The following is the variance of the first marginal of each of the cases:
 
-* <b>comonotonic:</b> `r var(com_mat[,1])`
-* <b>comonotonic</b> in the tail: `r var(res[,1])`
-* <b>not comonotonic:</b> `r var(new_res[,1])`
-
-Note that the variance for the comonotonic in the tail case and not
-comonotonic are similar. Also note that the variance for the comonotonic case is greater than the other two cases.
+* <b>comonotonic:</b> `r var(com[,1])`
+* <b>comonotonic</b> in the upper tail: `r var(upper[,1])`
+* <b>comonotonic</b> in the lower tail: `r var(lower[,1])`
+* <b>comonotonic</b> in the both tails: `r var(both[,1])`
+* <b>not comonotonic:</b> `r var(multiNorm[,1])`
 
 This is the ecdfplot of the sum of the marginals of each of the three random variables.
 ```{r, ecdfplot,echo=F}
-valuesV <- append(append(sum_com, sum_res),new_sum_res)
+valuesV <- c(sum_com, sum_upper,sum_lower,sum_both,sum_norm)
 typeV <- rep("sum_com",params$n)
-typeV <- append(typeV, rep("sum_res",params$n))
-typeV <- append(typeV, rep("new_sum_res",params$n))
+typeV <- append(typeV, rep("sum_upper",params$n))
+typeV <- append(typeV, rep("sum_lower",params$n))
+typeV <- append(typeV, rep("sum_both",params$n))
+typeV <- append(typeV, rep("sum_norm",params$n))
 
 
 dataFrame <- data.frame(values = valuesV, type = typeV)
@@ -209,101 +196,98 @@ plot(ecdfPlot)
 We have three random variables where each of them have `r params$dim` marginals. Each of these random variables
 represents the environmental noise on a population each with `r params$dim` metapopulations. We use a stochastic 
 ricker model to model how the population fluctuates over time
+
 ```{r}
 ricker <-function(curpop,r,k,eps){
   return(curpop*exp(r*(1-(curpop/k))+eps))
 }
 ```
 
-```{r,echo =F}
-extinct<-function(pop,tLow,tHigh){
-  if(any(pop<tLow|pop>tHigh)){return(TRUE)}
-  return(FALSE)
-}
-
-tLow <- params$initPopSize/2 
-tHigh <- 2*params$carryingCapacity
-
-numExtinctCom <- 0 
-numExtinctRes <- 0 
-numExtinctNewRes <- 0 
-```
 
 ```{r, epsilon environment var, eval = T,echo=F}
-for(j in 1:params$numSimulations){
-  eps_res <- res[sample(nrow(res),size=params$timeSteps,replace=T),] 
-  eps_com <- com_mat[sample(nrow(com_mat),size=params$timeSteps,replace=T),] 
-  eps_new_res <- newMultiNormMarg[sample(nrow(newMultiNormMarg),size=params$timeSteps,replace=T),] 
-  
-  popSizeCom <- matrix(data=rep(params$initPopSize,times=params$dim),nrow=1,byrow = T)
-  popSizeRes <- matrix(data=rep(params$initPopSize,times=params$dim),nrow=1,byrow = T)
-  popSizeNewRes <-  matrix(data=rep(params$initPopSize,times=params$dim),nrow=1,byrow = T)
-  # aPopSizeCom <- params$initPopSize
-  # aPopSizeRes <- params$initPopSize
-  # aPopSizeNewRes <- params$initPopSize
-  
-  for(i in 1:(params$timeSteps)){
-      popSizeCom <- rbind(popSizeCom,ricker(popSizeCom[i,],params$r,params$carryingCapacity,eps_com[i,]))
-      popSizeRes <- rbind(popSizeRes,ricker(popSizeRes[i,],params$r,params$carryingCapacity,eps_res[i,]))
-      popSizeNewRes <- rbind(popSizeNewRes,ricker(popSizeNewRes[i,],params$r,params$carryingCapacity,eps_new_res[i,]))
-      # aPopSizeCom <- append(aPopSizeCom,ricker(aPopSizeCom[i],params$r,params$carryingCapacity,sum(eps_com[i,])/params$dim ))
-      # aPopSizeRes <- append(aPopSizeRes,ricker(aPopSizeRes[i],params$r,params$carryingCapacity,sum(eps_res[i,])/params$dim ))
-      # aPopSizeNewRes <- append(aPopSizeNewRes,ricker(aPopSizeNewRes[i],params$r,params$carryingCapacity,sum(eps_new_res[i,])/params$dim ))
-  }
-  
-  avgPopSizeCom <- rowSums(popSizeCom)/params$dim
-  avgPopSizeRes <- rowSums(popSizeRes)/params$dim
-  avgPopSizeNewRes <- rowSums(popSizeNewRes)/params$dim
-  
-  if(extinct(avgPopSizeCom,tLow,tHigh)){numExtinctCom<-numExtinctCom+1}
-  if(extinct(avgPopSizeRes,tLow,tHigh)){numExtinctRes<-numExtinctRes+1}
-  if(extinct(avgPopSizeNewRes,tLow,tHigh)){numExtinctNewRes<-numExtinctNewRes+1}
+eps_upper <- upper[sample(nrow(upper),size=params$timeSteps,replace=T),] 
+eps_lower <- lower[sample(nrow(lower),size=params$timeSteps,replace=T),] 
+eps_both <- both[sample(nrow(both),size=params$timeSteps,replace=T),] 
+eps_com <- com[sample(nrow(com),size=params$timeSteps,replace=T),] 
+eps_norm <- multiNorm[sample(nrow(multiNorm),size=params$timeSteps,replace=T),] 
 
-  if(j == 1){
-    maxval = max(avgPopSizeCom,avgPopSizeRes,avgPopSizeNewRes) + 1000
-    plot.ts(avgPopSizeCom,ylim=c(0,maxval))
-    plot.ts(avgPopSizeRes,ylim=c(0,maxval))
-    plot.ts(avgPopSizeNewRes,ylim=c(0,maxval))
-    plot.ts(log10(avgPopSizeCom))
-    plot.ts(log10(avgPopSizeRes))
-    plot.ts(log10(avgPopSizeNewRes))
-    
-    if(params$dim >= 10){
-      plot.ts(popSizeCom[,1:10])
-      plot.ts(popSizeRes[,1:10])
-      plot.ts(popSizeNewRes[,1:10])
-      
-    }
-    
-    
-  }
+popSizeCom <- matrix(data=rep(params$initPopSize,times=params$dim),nrow=1,byrow = T)
+popSizeUpper <- matrix(data=rep(params$initPopSize,times=params$dim),nrow=1,byrow = T)
+popSizeLower <- matrix(data=rep(params$initPopSize,times=params$dim),nrow=1,byrow = T)
+popSizeBoth <- matrix(data=rep(params$initPopSize,times=params$dim),nrow=1,byrow = T)
+popSizeNorm <- matrix(data=rep(params$initPopSize,times=params$dim),nrow=1,byrow = T)
+
+for(i in 1:(params$timeSteps)){
+    popSizeCom <- rbind(popSizeCom,ricker(popSizeCom[i,],params$r,params$carryingCapacity,eps_com[i,]))
+    popSizeUpper <- rbind(popSizeUpper,ricker(popSizeUpper[i,],params$r,params$carryingCapacity,eps_upper[i,]))
+    popSizeLower <- rbind(popSizeLower,ricker(popSizeLower[i,],params$r,params$carryingCapacity,eps_lower[i,]))
+    popSizeBoth <- rbind(popSizeBoth,ricker(popSizeBoth[i,],params$r,params$carryingCapacity,eps_both[i,]))
+    popSizeNorm <- rbind(popSizeNorm,ricker(popSizeNorm[i,],params$r,params$carryingCapacity,eps_norm[i,]))
+}
+
+avgPopSizeCom <- rowSums(popSizeCom)/params$dim 
+avgPopSizeUpper <- rowSums(popSizeUpper)/params$dim 
+avgPopSizeLower <- rowSums(popSizeLower)/params$dim
+avgPopSizeBoth <- rowSums(popSizeBoth)/params$dim
+avgPopSizeNorm <- rowSums(popSizeNorm)/params$dim
+
+plot.ts(avgPopSizeCom)
+plot.ts(avgPopSizeUpper)
+plot.ts(avgPopSizeLower)
+plot.ts(avgPopSizeBoth)
+plot.ts(avgPopSizeNorm)
+
+plot.ts(log10(avgPopSizeCom))
+plot.ts(log10(avgPopSizeUpper))
+plot.ts(log10(avgPopSizeLower))
+plot.ts(log10(avgPopSizeBoth))
+plot.ts(log10(avgPopSizeNorm))
+
+if(params$dim >= 10){
+  plot.ts(popSizeCom[,1:10])
+  plot.ts(popSizeUpper[,1:10])
+  plot.ts(popSizeLower[,1:10])
+  plot.ts(popSizeBoth[,1:10])
+  plot.ts(popSizeNorm[,1:10])
 }
 ```
 
 `r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1);close(con)`
 `r lines`
 
-
 ```{r}
-upB <- max(quantile(avgPopSizeCom,0.98),quantile(avgPopSizeRes,0.98),quantile(avgPopSizeNewRes,0.98))
+upB <- max(quantile(avgPopSizeCom,0.98),quantile(avgPopSizeUpper,0.98),quantile(avgPopSizeLower,0.98),quantile(avgPopSizeBoth,0.98),quantile(avgPopSizeNorm,0.98))
 
-com <- data.frame(population =avgPopSizeCom[avgPopSizeCom<upB] )
-res <- data.frame(population =avgPopSizeRes[avgPopSizeRes<upB] )
-newRes <- data.frame(population =avgPopSizeNewRes[avgPopSizeNewRes<upB] )
-com$type <- "com"
-res$type <- "res"
-newRes$type <- "newRes"
+c <- data.frame(population =avgPopSizeCom[avgPopSizeCom<upB] )
+u <- data.frame(population =avgPopSizeUpper[avgPopSizeUpper<upB] )
+l <- data.frame(population =avgPopSizeLower[avgPopSizeLower<upB] )
+b <- data.frame(population =avgPopSizeBoth[avgPopSizeBoth<upB] )
+n <- data.frame(population =avgPopSizeNorm[avgPopSizeNorm<upB] )
 
-popfreq <- rbind(com,res,newRes)
+c$type <- "comonotonic"
+u$type <- "comonotonic in the upper tail"
+l$type <- "comonotonic in the lower tail"
+b$type <- "comonotonic in both tails"
+n$type <- "not comonotonic"
+
+popfreq <- rbind(c,u,l,b,n)
 
 ggplot(popfreq,aes(population,fill=type)) + geom_histogram(bins=200, alpha =0.6, position ='identity')
 
 hist(avgPopSizeCom[avgPopSizeCom<upB],breaks=200)
 print(paste0("mean: ", mean(avgPopSizeCom)," median: ", median(avgPopSizeCom)))
-hist(avgPopSizeRes[avgPopSizeRes<upB],breaks=200)
-print(paste0("mean: ", mean(avgPopSizeRes)," median: ", median(avgPopSizeRes)))
-hist(avgPopSizeNewRes[avgPopSizeNewRes<upB],breaks=200)
-print(paste0("mean: ", mean(avgPopSizeNewRes)," median: ", median(avgPopSizeNewRes)))
+
+hist(avgPopSizeUpper[avgPopSizeUpper<upB],breaks=200)
+print(paste0("mean: ", mean(avgPopSizeUpper)," median: ", median(avgPopSizeUpper)))
+
+hist(avgPopSizeLower[avgPopSizeLower<upB],breaks=200)
+print(paste0("mean: ", mean(avgPopSizeLower)," median: ", median(avgPopSizeLower)))
+
+hist(avgPopSizeBoth[avgPopSizeBoth<upB],breaks=200)
+print(paste0("mean: ", mean(avgPopSizeBoth)," median: ", median(avgPopSizeBoth)))
+
+hist(avgPopSizeNorm[avgPopSizeNorm<upB],breaks=200)
+print(paste0("mean: ", mean(avgPopSizeNorm)," median: ", median(avgPopSizeNorm)))
 
 ```
 
