@@ -5,11 +5,11 @@ output:
       theme: united
       css: style.css
 params:
-  n: 10000
+  n: 100000
   dim: 10 
   rho: 0.1
   thresh: 0.2
-  eps_sd: 0.1
+  eps_sd: 1
     
   r: 1 
   initPopSize: 500 
@@ -68,15 +68,20 @@ library(forecast)
 
 ```{r, functions,echo=F}
 #dr. reuman's function
-newCopulaWithTailDependece<-function(res,n,dim,rho,thresh_lo,thresh_hi)
+newCopulaWithTailDependece<-function(U,res,n,dim,rho,thresh_lo,thresh_hi)
 {
-  U<-runif(n)
   res<-(thresh_hi-thresh_lo)*res+thresh_lo
   res[U>thresh_hi,]<-rep(U[U>thresh_hi],times=dim) #this line takes the rows of res for which the corresponding
   #entry of U is bigger than thresh_hi and replaces both entries of those rows by the corresponding value of U
   res[U<thresh_lo,]<-rep(U[U<thresh_lo],times=dim) #this line takes the rows of res for which the corresponding
   #entry of U is smaller than thresh_lo and replaces both entries of those rows by the corresponding value of U
   return(res)
+}
+
+newCopulaWithTail<- function(res,n,dim,rho,thresh_lo,thresh_hi){
+  n1 <- round(thresh_lo*n)
+  n2 <- round(thresh_hi*n)
+  
 }
 
 # function isn't really needed, can avoid using it
@@ -95,11 +100,15 @@ findNormalCopulaParam <- function(dim,varSumRetain){
 # Construction of a Tail Dependent Random Variable
 Here we construct our copula with tail dependence with the newCopulaWithTailDependence function.
 ```{r}
-ncop<-normalCopula(rho,dim=dim)
+U<-runif(params$n)
+ncop<-normalCopula(params$rho,dim=params$dim) 
 res<-rCopula(params$n,ncop)
-upper<-newCopulaWithTailDependece(res,params$n,params$dim,params$rho,0,1-params$thresh)
-lower<-newCopulaWithTailDependece(res,params$n,params$dim,params$rho,params$thresh,1)
-both<-newCopulaWithTailDependece(res,params$n,params$dim,params$rho,params$thresh/2,1-(params$thresh/2))
+upper<-newCopulaWithTailDependece(U,res,params$n,params$dim,params$rho,0,1-params$thresh)
+lower<-newCopulaWithTailDependece(U,res,params$n,params$dim,params$rho,params$thresh,1)
+both<-newCopulaWithTailDependece(U,res,params$n,params$dim,params$rho,params$thresh/2,1-(params$thresh/2))
+plot(upper)
+plot(lower)
+plot(both)
 ```
 
 The parameters that we pass into the function indicate that:
@@ -116,14 +125,16 @@ We now transforms all of our marginals of our `r params$dim`-dimensional copula 
 upper<-qnorm(upper,sd=params$eps_sd)
 lower<-qnorm(lower,sd=params$eps_sd)
 both<-qnorm(both,sd=params$eps_sd)
+cov(upper)
+cov(lower)
+cov(both)
 ```
 
 `r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1);close(con)`
 <!-- `r lines` -->
 We now find the rho parameter to construct a `r params$dim`-variate normal copula that has the same value for the  variance of the sum of the marginals as our tail dependent random variable
 ```{r}
-#arbitrarily chose upper, it makes no difference
-varSumRetain <- sum(cov(upper))
+varSumRetain <- sum((1/params$eps_sd^2)*cov(upper))
 rho <- findNormalCopulaParam(params$dim, varSumRetain)
 newNormalCop <- normalCopula(param = rho,dim =params$dim)
 newNormCop <- rCopula(params$n, newNormalCop)
@@ -156,7 +167,7 @@ random variables respectively are:
 * <b>comonotonic:</b> `r sum(cov(com))` `r var(sum_com)` 
 * <b>comonotonic</b> in the upper tail: `r sum(cov(upper))` `r var(sum_upper)` 
 * <b>comonotonic</b> in the lower tail: `r sum(cov(lower))` `r var(sum_lower)`
-* <b>comonotonic</b> in the both tails: `r sum(cov(both))` `r var(sum_both)`
+* <b>comonotonic</b> in both tails: `r sum(cov(both))` `r var(sum_both)`
 * <b>not comonotonic:</b> `r sum(cov(multiNorm))` `r var(sum_norm)`
 
 The following is the variance of the first marginal of each of the cases:
@@ -164,7 +175,7 @@ The following is the variance of the first marginal of each of the cases:
 * <b>comonotonic:</b> `r var(com[,1])`
 * <b>comonotonic</b> in the upper tail: `r var(upper[,1])`
 * <b>comonotonic</b> in the lower tail: `r var(lower[,1])`
-* <b>comonotonic</b> in the both tails: `r var(both[,1])`
+* <b>comonotonic</b> in both tails: `r var(both[,1])`
 * <b>not comonotonic:</b> `r var(multiNorm[,1])`
 
 This is the ecdfplot of the sum of the marginals of each of the three random variables.
