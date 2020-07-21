@@ -5,16 +5,16 @@ output:
       theme: united
       css: style.css
 params:
-  n: 100000
+  n: 10000
   dim: 10 
   rho: 0.1
-  thresh: 0.2
+  thresh: 0.4
   eps_sd: 1
     
   r: 1 
   initPopSize: 500 
   carryingCapacity: 500 
-  timeSteps: 10000 
+  timeSteps: 1000 
   
   setseed: FALSE
   seed: 10
@@ -63,13 +63,15 @@ library(copula)
 library(mvtnorm)
 library(ggplot2)
 library(tseries)
-library(forecast)
 ```
 
 ```{r, functions,echo=F}
 #dr. reuman's function
-newCopulaWithTailDependece<-function(U,res,n,dim,rho,thresh_lo,thresh_hi)
+newCopulaWithTailDependece<-function(n,dim,rho,thresh_lo,thresh_hi)
 {
+  U<-runif(n)
+  ncop<-normalCopula(rho,dim=dim) 
+  res<-rCopula(n,ncop)
   res<-(thresh_hi-thresh_lo)*res+thresh_lo
   res[U>thresh_hi,]<-rep(U[U>thresh_hi],times=dim) #this line takes the rows of res for which the corresponding
   #entry of U is bigger than thresh_hi and replaces both entries of those rows by the corresponding value of U
@@ -78,13 +80,6 @@ newCopulaWithTailDependece<-function(U,res,n,dim,rho,thresh_lo,thresh_hi)
   return(res)
 }
 
-newCopulaWithTail<- function(res,n,dim,rho,thresh_lo,thresh_hi){
-  n1 <- round(thresh_lo*n)
-  n2 <- round(thresh_hi*n)
-  
-}
-
-# function isn't really needed, can avoid using it
 findNormalCopulaParam <- function(dim,varSumRetain){
     fOptim <-function(rho){
      #varSum is the sum of all entries in the covariance matrix 
@@ -100,12 +95,9 @@ findNormalCopulaParam <- function(dim,varSumRetain){
 # Construction of a Tail Dependent Random Variable
 Here we construct our copula with tail dependence with the newCopulaWithTailDependence function.
 ```{r}
-U<-runif(params$n)
-ncop<-normalCopula(params$rho,dim=params$dim) 
-res<-rCopula(params$n,ncop)
-upper<-newCopulaWithTailDependece(U,res,params$n,params$dim,params$rho,0,1-params$thresh)
-lower<-newCopulaWithTailDependece(U,res,params$n,params$dim,params$rho,params$thresh,1)
-both<-newCopulaWithTailDependece(U,res,params$n,params$dim,params$rho,params$thresh/2,1-(params$thresh/2))
+upper<-newCopulaWithTailDependece(params$n,params$dim,params$rho,0,1-params$thresh)
+lower<-newCopulaWithTailDependece(params$n,params$dim,params$rho,params$thresh,1)
+both<-newCopulaWithTailDependece(params$n,params$dim,params$rho,params$thresh/2,1-(params$thresh/2))
 plot(upper)
 plot(lower)
 plot(both)
@@ -125,9 +117,9 @@ We now transforms all of our marginals of our `r params$dim`-dimensional copula 
 upper<-qnorm(upper,sd=params$eps_sd)
 lower<-qnorm(lower,sd=params$eps_sd)
 both<-qnorm(both,sd=params$eps_sd)
-cov(upper)
-cov(lower)
-cov(both)
+# cov(upper)
+# cov(lower)
+# cov(both)
 ```
 
 `r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1);close(con)`
