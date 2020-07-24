@@ -1,6 +1,7 @@
 
 #library(pracma)
 library(copula)
+library(pracma)
 #reuman's function
 newCopulaWithTailDependence<-function(n,dim,rho,thresh_lo,thresh_hi)
 {
@@ -15,20 +16,72 @@ newCopulaWithTailDependence<-function(n,dim,rho,thresh_lo,thresh_hi)
   return(res)
 }
 
+
+makeVar <- function(amount,param,tail){
+  n <- 10000000
+  n1 <- floor(n*(1-amount))
+  n2 <- n-n1
+  U <- runif(n1,max=(1-amount))
+  U <- cbind(U,U)
+  ncop <- normalCopula(param=param, dim=2)
+  if(!tail) {return((amount)*rCopula(n2,ncop)+(1-amount))}
+  else{
+    x <- (amount)*rCopula(n2,ncop)+(1-amount)
+  }
+    
+  U <- rbind(U,x)
+}
+x <- newCopulaWithTailDependece(100000,2,0.1,0.3,0.7)
+plot(x)
+mean(x)
+temp1<-cov(x[,1][x[,1]<0.3],x[,2][x[,2]<0.3])
+temp2<-cov(x[,1][x[,1]>0.3&x[,1]<0.7],x[,2][x[,2]>0.3&x[,1]<0.7])
+temptop<-cov(x[,1][x[,1]>0.7],x[,2][x[,2]>0.7])
+temp1 <- 0.3*(temp1+0.0225)
+temp2 <- (0.7-0.3)*(temp2+((0.3+0.7)*0.5)^2)
+temptop <- (1-0.7)*(temptop+0.7255)
+temp3 <- temp1+temp2+temptop-0.25
+temp3
+temp1
+temp2
+temptop
+cov(x)[1,2]
+cov(x)[1,2]+0.25#(0.5*(0.3+(0.3+amount)))^2
+plot.ecdf(x[,1]*x[,2])
+plot.ecdf(runif(10000)*runif(10000))
+plot(runif(10000),runif(10000))
+x <- makeVar(0.7,0.4,F)
+
 eUnif <- function(a,b){
   return(0.5*(a+b))
 }
-
-makeVar <- function(){
-  U <- runif(3000,max=0.3)
-  U <- cbind(U,U)  
-  ncop <- normalCopula(param=0.4, dim=2)
-  x <- 0.7*rCopula(7000,ncop)+0.3
-  U <- rbind(U,x)  
+varUnif <- function(a,b){
+  return((1/12)*(b-a)^2)
 }
+covTailedNormalCopula <- function(lower,upper,rho){
+  f3 <- function(x,y){
+    a <- function(x){sqrt(2)*erfinv(2*((1)*(x-lower)/(upper-lower))-1)}
+    b <- function(y){sqrt(2)*erfinv(2*((1)*(y-lower)/(upper-lower))-1)}
+    (x*y)*(1/(upper-lower))*(1/sqrt(1-rho^2))*exp(-1*((a(x)^2+b(y)^2)*rho^2-(2*a(x)*b(y)*rho))/(2*(1-rho^2)))
+  } 
+  
+  int1 <- lower*(varUnif(0,lower)+eUnif(0,lower)^2)
+  int2 <- (1-upper)*(varUnif(upper,1)+eUnif(upper,1)^2)
+  int3 <- integral2(f3,xmin=lower,xmax=upper,ymin=lower,ymax=upper)$Q
+  return(int1+int2+int3-eUnif(0,1)^2)
+}
+covTailedNormalCopula(0.4,0.7,0.4)
+
+tailcop <- newCopulaWithTailDependence(100000000,2,0.4,0.4,0.7)
+mycov <- cov(tailcop)[1,2]
+mycov
+plot(tailcop)
+thingy <- mycov+0.25
+
+thingy
 
 
-varNormalCopula <- function(u,v,rho){
+covNormalCopula <- function(u,v,rho){
   
   f3 <- function(x,y){
     p <- rho 
@@ -52,7 +105,7 @@ rho <- 0.1
 ncop <- normalCopula(param= rho, dim =2)
 mycop <- rCopula(1000000,ncop)
 cov(mycop)[1,2]
-varNormalCopula(0,1,rho)
+covNormalCopula(0,1,rho)
 
 #wikiped
 testvarlower <- function(u,v,tail,rho){

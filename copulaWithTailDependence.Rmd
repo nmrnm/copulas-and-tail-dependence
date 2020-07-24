@@ -117,9 +117,6 @@ We now transforms all of our marginals of our `r params$dim`-dimensional copula 
 upper<-qnorm(upper,sd=params$eps_sd)
 lower<-qnorm(lower,sd=params$eps_sd)
 both<-qnorm(both,sd=params$eps_sd)
-# cov(upper)
-# cov(lower)
-# cov(both)
 ```
 
 `r con=file(paste0(getwd(),"/testhtml/",params$filename,params$fileext));lines=readLines(con,n=-1);close(con)`
