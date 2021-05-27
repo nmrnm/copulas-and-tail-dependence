@@ -59,7 +59,7 @@ varUnif <- function(a,b){
   return((1/12)*(b-a)^2)
 }
 covTailedNormalCopula <- function(lower,upper,rho){
-  f3 <- function(x,y){
+  f <- function(x,y){
     a <- function(x){sqrt(2)*erfinv(2*((1)*(x-lower)/(upper-lower))-1)}
     b <- function(y){sqrt(2)*erfinv(2*((1)*(y-lower)/(upper-lower))-1)}
     (x*y)*(1/(upper-lower))*(1/sqrt(1-rho^2))*exp(-1*((a(x)^2+b(y)^2)*rho^2-(2*a(x)*b(y)*rho))/(2*(1-rho^2)))
@@ -67,16 +67,23 @@ covTailedNormalCopula <- function(lower,upper,rho){
   
   int1 <- lower*(varUnif(0,lower)+eUnif(0,lower)^2)
   int2 <- (1-upper)*(varUnif(upper,1)+eUnif(upper,1)^2)
-  int3 <- integral2(f3,xmin=lower,xmax=upper,ymin=lower,ymax=upper)$Q
+  int3 <- integral2(f,xmin=lower,xmax=upper,ymin=lower,ymax=upper)$Q
   return(int1+int2+int3-eUnif(0,1)^2)
 }
-covTailedNormalCopula(0.4,0.7,0.4)
+covTailedNormalCopula(0.4,0.7,0.1)
 
-tailcop <- newCopulaWithTailDependence(100000000,2,0.4,0.4,0.7)
+tailcop <- newCopulaWithTailDependence(10000,2,0.1,0.1,0.7)
 mycov <- cov(tailcop)[1,2]
 mycov
 plot(tailcop)
 thingy <- mycov+0.25
+
+dTailCop <- qnorm(tailcop)
+
+plot(dTailCop[,1][dTailCop[,1]<(-1.285)],dTailCop[,2][dTailCop[,2]<(-1.285)])
+hist(dTailCop[,1][dTailCop[,1]<(-1.28)])
+length(dTailCop[,1][dTailCop[,1]< (-1.28) ])
+length(dTailCop[,2][dTailCop[,2]< (-1.28) ])
 
 thingy
 
