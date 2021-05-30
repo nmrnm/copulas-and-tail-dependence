@@ -1,0 +1,102 @@
+---
+title: "Population dynamics"
+output:
+  html_document:
+      theme: united
+      css: style.css
+---
+
+```{r setup, echo=F}
+knitr::opts_chunk$set(echo=T,fig.align='center')
+```
+
+```{r}
+library(pracma)
+```
+
+
+```{r}
+eUnif <- function(a,b){
+  return(0.5*(a+b))
+}
+varUnif <- function(a,b){
+  return((1/12)*(b-a)^2)
+}
+covTailedNormalCopula <- function(lower,upper,rho){
+  f <- function(x,y){
+    a <- function(x){sqrt(2)*erfinv(2*((1)*(x-lower)/(upper-lower))-1)}
+    b <- function(y){sqrt(2)*erfinv(2*((1)*(y-lower)/(upper-lower))-1)}
+    (x*y)*(1/(upper-lower))*(1/sqrt(1-rho^2))*exp(-1*((a(x)^2+b(y)^2)*rho^2-(2*a(x)*b(y)*rho))/(2*(1-rho^2)))
+  } 
+  # Cov(x,y) = E[xy]-E[x]*E[y] -> Cov(x,y) + E[x]*E[y] = E[xy]
+  int1 <- lower*(varUnif(0,lower)+eUnif(0,lower)^2)
+  int2 <- (1-upper)*(varUnif(upper,1)+eUnif(upper,1)^2)
+  int3 <- integral2(f,xmin=lower,xmax=upper,ymin=lower,ymax=upper)$Q
+  return(int1+int2+int3-eUnif(0,1)^2)
+}
+
+conditionalExpect <- function(lower,upper,rho,yval){
+  if(yval<=lower || yval >= upper){
+    return(yval)
+  } 
+  # E[X|Y=yval]
+  f <- function(x){
+    a <- function(x){sqrt(2)*erfinv(2*((1)*(x-lower)/(upper-lower))-1)}
+    b <- sqrt(2)*erfinv(2*((1)*(yval-lower)/(upper-lower))-1)
+    x*(1/(upper-lower))*(1/sqrt(1-rho^2))*exp(-1*((a(x)^2+b^2)*rho^2-(2*a(x)*b*rho))/(2*(1-rho^2)))
+  } 
+  
+  integrate(f,lower,upper)$value
+}
+```
+
+```{r}
+
+
+lower <- 0.3
+upper <- 0.7
+
+rho <- 0.3
+eps_sd <- 1
+
+r <-  1 
+initPopSize <-  500 
+K <-  500 
+timeSteps <- 20000
+
+```
+
+```{r}
+xunif <- runif(timeSteps)
+eps_b <- sapply(xunif, conditionalExpect, lower = lower, upper = upper, rho = rho)
+eps_l <- sapply(xunif, conditionalExpect, lower = lower, upper = 1, rho = rho)
+eps_u <- sapply(xunif, conditionalExpect, lower = 0, upper = upper, rho = rho)
+```
+
+```{r}
+eps_b <- qnorm(eps_b,sd=eps_sd)
+eps_l <- qnorm(eps_l,sd=eps_sd)
+eps_u <- qnorm(eps_u,sd=eps_sd)
+```
+
+```{r}
+hist(xunif)
+hist(eps_b,200)
+hist(eps_l,200)
+hist(eps_u,200)
+```
+
+```{r}
+ricker <-function(curpop,r,k,eps){
+  return(curpop*exp(r*(1-(curpop/k))+eps))
+}
+eps <- matrix(data=cbind(eps_b,eps_l,eps_u),ncol=3)
+
+avgPopSize <- matrix(data=rep(initPopSize,times=3),nrow=1)
+
+for(i in 1:timeSteps){
+  avgPopSize <- rbind(avgPopSize, ricker(avgPopSize[i],r,K,eps[i,]))
+}
+plot.ts(avgPopSize[,3])
+```
+

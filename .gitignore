@@ -1,2 +1,8 @@
-*.html
-*.png
+# i don't think this one below really matters
+.Rhistory
+# the two below aren't really needed either
+*.csv 
+*.xlsx
+*.RData
+*.rdb
+*.rdx
